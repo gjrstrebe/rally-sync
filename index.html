@@ -100,7 +100,7 @@
                         <i class="fa-solid fa-clock mr-1 text-sky-400"></i> Planned Landing
                     </button>
                     <button id="modeQueueBtn" onclick="setMode('queue')" class="py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white">
-                        <i class="fa-solid fa-list-check mr-1 text-amber-400"></i> Sync Queue Rally
+                        <i class="fa-solid fa-shield-halved mr-1 text-rose-400"></i> Enemy Re-Cap Engine
                     </button>
                 </div>
 
@@ -130,24 +130,26 @@
                     </button>
                 </div>
 
-                <!-- Sync Queue Rally Controls -->
+                <!-- Enemy Re-Cap Engine Controls -->
                 <div id="queueControls" class="space-y-4 hidden">
-                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs font-bold text-amber-400">Active Prep Timer</span>
-                            <span id="queuePrepDisplay" class="text-sm font-mono font-black text-white">05:00</span>
+                    <div class="p-3 bg-rose-950/40 rounded-xl border border-rose-900/60">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-skull text-xs"></i> Incoming Enemy Rally Timer
+                            </span>
+                            <span id="queuePrepDisplay" class="text-sm font-mono font-black text-rose-400">04:15</span>
                         </div>
-                        <div class="grid grid-cols-6 gap-1">
-                            <button onclick="adjustQueueTimer(60)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+1m</button>
-                            <button onclick="adjustQueueTimer(-60)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-1m</button>
-                            <button onclick="adjustQueueTimer(30)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+30s</button>
-                            <button onclick="adjustQueueTimer(-30)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-30s</button>
+                        <p class="text-[10px] text-slate-400 mb-2">Input enemy countdown remaining on castle. Generates Post-Enemy Solos + Re-Cap Rally + Pre-Rally Solos.</p>
+                        <div class="grid grid-cols-4 gap-1">
+                            <button onclick="adjustQueueTimer(10)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+10s</button>
+                            <button onclick="adjustQueueTimer(-10)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-10s</button>
                             <button onclick="adjustQueueTimer(1)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+1s</button>
                             <button onclick="adjustQueueTimer(-1)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-1s</button>
                         </div>
                     </div>
-                    <button onclick="lockQueueSync()" class="w-full py-3 px-4 rounded-xl font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 active:scale-[0.98] transition shadow-lg font-mono text-xs flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-lock text-slate-950"></i> LOCK FUTURE TARGET FROM TIMER
+
+                    <button onclick="lockQueueSync()" class="w-full py-3 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-rose-600 via-rose-500 to-fire-600 hover:from-rose-500 hover:to-fire-500 active:scale-[0.98] transition shadow-lg font-mono text-xs flex items-center justify-center gap-2 glow-orange">
+                        <i class="fa-solid fa-bolt text-white"></i> GENERATE RE-CAP COUNTER-STRIKE TRIGGERS
                     </button>
                 </div>
             </div>
@@ -170,7 +172,7 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-[10px] text-slate-400">March Duration (Sec)</label>
-                                <input type="number" id="rallyMarchSec" value="45" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+                                <input type="number" id="rallyMarchSec" value="10" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
                             </div>
                             <div>
                                 <label class="text-[10px] text-slate-400">Target Offset</label>
@@ -185,15 +187,15 @@
                             <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
                                 <i class="fa-solid fa-jet-fighter text-xs"></i> Solo 1 (First Debuff)
                             </span>
-                            <span class="text-[10px] text-slate-400">Land BEFORE Rally</span>
+                            <span class="text-[10px] text-slate-400">Pre/Post Offset</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-[10px] text-slate-400">March Time (Sec)</label>
-                                <input type="number" id="solo1MarchSec" value="32" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+                                <input type="number" id="solo1MarchSec" value="10" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
                             </div>
                             <div>
-                                <label class="text-[10px] text-slate-400">Offset (Sec before Rally)</label>
+                                <label class="text-[10px] text-slate-400">Offset (Sec)</label>
                                 <input type="number" id="solo1OffsetSec" value="-2.0" step="0.1" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-sky-400 font-mono">
                             </div>
                         </div>
@@ -209,10 +211,10 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-[10px] text-slate-400">March Time (Sec)</label>
-                                <input type="number" id="solo2MarchSec" value="28" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+                                <input type="number" id="solo2MarchSec" value="10" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
                             </div>
                             <div>
-                                <label class="text-[10px] text-slate-400">Offset (Sec before Rally)</label>
+                                <label class="text-[10px] text-slate-400">Offset (Sec)</label>
                                 <input type="number" id="solo2OffsetSec" value="-1.2" step="0.1" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-indigo-400 font-mono">
                             </div>
                         </div>
@@ -228,10 +230,10 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-[10px] text-slate-400">March Time (Sec)</label>
-                                <input type="number" id="solo3MarchSec" value="30" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+                                <input type="number" id="solo3MarchSec" value="10" min="1" max="1800" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
                             </div>
                             <div>
-                                <label class="text-[10px] text-slate-400">Offset (Sec before Rally)</label>
+                                <label class="text-[10px] text-slate-400">Offset (Sec)</label>
                                 <input type="number" id="solo3OffsetSec" value="-0.5" step="0.1" onchange="calculateSync()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-purple-400 font-mono">
                             </div>
                         </div>
@@ -247,106 +249,26 @@
             <!-- Target Summary Bar -->
             <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Calculated Target Impact</div>
+                    <div id="targetLabel" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Calculated Target Impact</div>
                     <div id="targetImpactDisplay" class="text-xl font-extrabold font-mono text-emerald-400">--:--:--.--</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Rally Start Timestamp</div>
+                    <div id="secondaryLabel" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Rally Start Timestamp</div>
                     <div id="rallyStartDisplay" class="text-sm font-bold font-mono text-slate-300">--:--:--</div>
                 </div>
             </div>
 
-            <!-- Synchronized Dispatch Cards -->
+            <!-- Synchronized Dispatch Cards Container (Dynamically Sorted) -->
             <div class="space-y-3">
-                <h2 class="text-xs font-bold tracking-wider text-slate-400 uppercase flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Dispatch Trigger Countdowns
-                </h2>
-
-                <!-- Rally Captain Card -->
-                <div id="cardRally" class="glass-panel rounded-2xl p-4 border border-slate-800 transition-all duration-300">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold">
-                                <i class="fa-solid fa-crown"></i>
-                            </div>
-                            <div>
-                                <div class="font-bold text-sm text-white flex items-center gap-2">
-                                    RALLY HOST START
-                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">5m Prep</span>
-                                </div>
-                                <div class="text-xs text-slate-400 font-mono">
-                                    Trigger: <span id="rallyTriggerTime">--:--:--</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div id="rallyCountdown" class="text-2xl font-black font-mono text-slate-300">00:00.0</div>
-                            <div id="rallyStatus" class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">WAITING</div>
-                        </div>
-                    </div>
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Dispatch Trigger Countdowns (Chronological Order)
+                    </h2>
+                    <span id="triggerModeTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Realtime Mode</span>
                 </div>
 
-                <!-- Solo 1 Card -->
-                <div id="cardSolo1" class="glass-panel rounded-2xl p-4 border border-slate-800 transition-all duration-300">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold">
-                                S1
-                            </div>
-                            <div>
-                                <div class="font-bold text-sm text-white">SOLO MARCH 1</div>
-                                <div class="text-xs text-slate-400 font-mono">
-                                    Trigger: <span id="solo1TriggerTime">--:--:--</span> | Offset: <span id="solo1OffsetBadge" class="text-sky-400">-2.0s</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div id="solo1Countdown" class="text-2xl font-black font-mono text-slate-300">00:00.0</div>
-                            <div id="solo1Status" class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">WAITING</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Solo 2 Card -->
-                <div id="cardSolo2" class="glass-panel rounded-2xl p-4 border border-slate-800 transition-all duration-300">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
-                                S2
-                            </div>
-                            <div>
-                                <div class="font-bold text-sm text-white">SOLO MARCH 2</div>
-                                <div class="text-xs text-slate-400 font-mono">
-                                    Trigger: <span id="solo2TriggerTime">--:--:--</span> | Offset: <span id="solo2OffsetBadge" class="text-indigo-400">-1.2s</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div id="solo2Countdown" class="text-2xl font-black font-mono text-slate-300">00:00.0</div>
-                            <div id="solo2Status" class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">WAITING</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Solo 3 Card -->
-                <div id="cardSolo3" class="glass-panel rounded-2xl p-4 border border-slate-800 transition-all duration-300">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center font-bold">
-                                S3
-                            </div>
-                            <div>
-                                <div class="font-bold text-sm text-white">SOLO MARCH 3</div>
-                                <div class="text-xs text-slate-400 font-mono">
-                                    Trigger: <span id="solo3TriggerTime">--:--:--</span> | Offset: <span id="solo3OffsetBadge" class="text-purple-400">-0.5s</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div id="solo3Countdown" class="text-2xl font-black font-mono text-slate-300">00:00.0</div>
-                            <div id="solo3Status" class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">WAITING</div>
-                        </div>
-                    </div>
+                <div id="cardsList" class="space-y-3">
+                    <!-- Rendered dynamically in exact chronological trigger order -->
                 </div>
             </div>
 
@@ -368,13 +290,13 @@
                     </div>
                     <div>• <span class="text-slate-400">Rally Prep Duration:</span> <span class="text-white">300.0s (5m)</span></div>
                     <div>• <span class="text-slate-400">Rally Lead March:</span> <span id="mathRallyMarch" class="text-amber-400">45.0s</span> <span class="text-slate-500">→ Total Rally Span = <span id="mathTotalRallySpan" class="text-white">345.0s</span></span></div>
-                    <div>• <span class="text-slate-400">Target Impact Anchor ($T_{impact}$):</span> <span id="mathAnchorOffset" class="text-emerald-400">+345.0s after Rally Start</span></div>
+                    <div>• <span class="text-slate-400">Calculated Target Impact Window:</span> <span id="mathAnchorOffset" class="text-emerald-400">+345.0s after Rally Start</span></div>
                 </div>
 
                 <div id="timelineContainer" class="relative pt-8 pb-4 px-4 bg-slate-950/40 rounded-xl border border-slate-800/80">
                     <!-- Baseline Target Line -->
                     <div class="absolute top-0 bottom-0 right-12 w-0.5 bg-fire-500/80 z-10 flex flex-col items-center">
-                        <span class="bg-fire-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded -mt-6 font-mono shadow whitespace-nowrap">RALLY IMPACT</span>
+                        <span id="targetLineBadge" class="bg-fire-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded -mt-6 font-mono shadow whitespace-nowrap">RALLY IMPACT</span>
                     </div>
 
                     <!-- Live Tracks -->
@@ -396,20 +318,16 @@
         
         let tRallyStart = null;
         let tImpact = null;
-        let queuePrepSec = 300; // Default 5 mins for Queue tab
+        let tEnemyImpact = null; // Used in Queue Re-Cap mode
+        let queuePrepSec = 255; // 4m 15s default incoming enemy timer
 
-        let triggers = {
-            rally: null,
-            solo1: null,
-            solo2: null,
-            solo3: null
-        };
+        let triggers = {};
 
         let marchDurations = {
-            rally: 45,
-            solo1: 32,
-            solo2: 28,
-            solo3: 30
+            rally: 10,
+            solo1: 10,
+            solo2: 10,
+            solo3: 10
         };
 
         let offsets = {
@@ -418,127 +336,229 @@
             solo3: -0.5
         };
 
-        // Audio Context for beep sound cues
-        let audioCtx = null;
+        // Mode Switching Function
+        function setMode(mode) {
+            syncMode = mode;
+            tRallyStart = null;
+            tImpact = null;
+            tEnemyImpact = null;
 
-        function playBeep(freq = 880, type = 'sine', duration = 0.1) {
-            if (!audioEnabled) return;
-            try {
+            // Update tab styles
+            const btnRealtime = document.getElementById('modeRealtimeBtn');
+            const btnTarget = document.getElementById('modeTargetBtn');
+            const btnQueue = document.getElementById('modeQueueBtn');
+
+            const ctrlRealtime = document.getElementById('realtimeControls');
+            const ctrlTarget = document.getElementById('targetControls');
+            const ctrlQueue = document.getElementById('queueControls');
+
+            const modeTag = document.getElementById('triggerModeTag');
+
+            btnRealtime.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white";
+            btnTarget.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white";
+            btnQueue.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white";
+
+            ctrlRealtime.classList.add('hidden');
+            ctrlTarget.classList.add('hidden');
+            ctrlQueue.classList.add('hidden');
+
+            if (mode === 'realtime') {
+                btnRealtime.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
+                ctrlRealtime.classList.remove('hidden');
+                if (modeTag) modeTag.innerText = "Realtime Mode";
+            } else if (mode === 'target') {
+                btnTarget.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
+                ctrlTarget.classList.remove('hidden');
+                if (modeTag) modeTag.innerText = "Planned Target Mode";
+                populateTargetLandingInputDefault();
+            } else if (mode === 'queue') {
+                btnQueue.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
+                ctrlQueue.classList.remove('hidden');
+                if (modeTag) modeTag.innerText = "Enemy Re-Cap Engine";
+            }
+
+            calculateSync();
+        }
+
+        function adjustQueueTimer(deltaSec) {
+            queuePrepSec = Math.max(1, queuePrepSec + deltaSec);
+            const mins = Math.floor(queuePrepSec / 60);
+            const secs = queuePrepSec % 60;
+            document.getElementById('queuePrepDisplay').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            if (tEnemyImpact) {
+                tEnemyImpact = Date.now() + (queuePrepSec * 1000);
+                calculateSync();
+            }
+        }
+
+        function getMinLandingTimestamp() {
+            const marchSec = parseFloat(document.getElementById('rallyMarchSec').value) || 10;
+            return Date.now() + RALLY_BAKE_MS + (marchSec * 1000);
+        }
+
+        function populateTargetLandingInputDefault() {
+            const minMs = getMinLandingTimestamp();
+            const d = new Date(minMs);
+            const iso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 23);
+            const input = document.getElementById('targetLandingInput');
+            if (input) input.value = iso;
+            const display = document.getElementById('minLandingDisplay');
+            if (display) display.innerText = formatTimeMs(minMs);
+        }
+
+        function validateTargetLandingInput() {
+            const input = document.getElementById('targetLandingInput');
+            if (!input || !input.value) return;
+            const selectedMs = new Date(input.value).getTime();
+            const minMs = getMinLandingTimestamp();
+            if (selectedMs < minMs) {
+                populateTargetLandingInputDefault();
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            const btn = document.getElementById('soundToggleBtn');
+
+            if (audioEnabled) {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                icon.className = "fa-solid fa-volume-high text-emerald-400";
+                text.innerText = "Audio Cues ON";
+                btn.className = "px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition flex items-center gap-2";
+                playBeep(880, 'sine', 0.1);
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-slate-400";
+                text.innerText = "Audio Cues OFF";
+                btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center gap-2";
+            }
+        }
+
+        function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+            if (!audioEnabled || !audioCtx) return;
+            try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = type;
                 osc.frequency.value = freq;
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
                 osc.stop(audioCtx.currentTime + duration);
             } catch (e) {
-                console.log('Audio playback blocked');
+                console.error("Audio synth error:", e);
             }
         }
 
-        function toggleAudio() {
-            audioEnabled = !audioEnabled;
-            const soundIcon = document.getElementById('soundIcon');
-            const soundText = document.getElementById('soundText');
-            const soundBtn = document.getElementById('soundToggleBtn');
+        function copyMarchOrdersToClipboard() {
+            if (!triggers || Object.keys(triggers).length === 0) return;
 
-            if (audioEnabled) {
-                soundIcon.className = "fa-solid fa-volume-high text-emerald-400";
-                soundText.innerText = "Audio Cues ON";
-                soundBtn.classList.add('border-emerald-500/40');
-                playBeep(523.25, 'sine', 0.15); // C5 notification
-            } else {
-                soundIcon.className = "fa-solid fa-volume-xmark text-slate-400";
-                soundText.innerText = "Audio Cues OFF";
-                soundBtn.classList.remove('border-emerald-500/40');
-            }
-        }
+            const formatUtc = (ms) => {
+                if (!ms) return 'N/A';
+                const d = new Date(ms);
+                const hh = String(d.getUTCHours()).padStart(2, '0');
+                const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                const ss = String(d.getUTCSeconds()).padStart(2, '0');
+                return `${hh}:${mm}:${ss} UTC`;
+            };
 
-        function getMinLandingTimestamp() {
-            const rallyMarchSec = parseFloat(document.getElementById('rallyMarchSec').value) || 0;
-            return Date.now() + RALLY_BAKE_MS + (rallyMarchSec * 1000);
-        }
+            const modeTitles = {
+                realtime: '⚔️ ALLIANCE RALLY & SOLO MARCH COMMAND ORDERS ⚔️',
+                target: '🎯 PLANNED TARGET LANDING COMMAND ORDERS 🎯',
+                queue: '🚨 RE-CAP COUNTER-STRIKE COMMAND ORDERS 🚨'
+            };
 
-        function setMode(mode) {
-            syncMode = mode;
-            const rtBtn = document.getElementById('modeRealtimeBtn');
-            const tgBtn = document.getElementById('modeTargetBtn');
-            const qBtn = document.getElementById('modeQueueBtn');
-            const rtCtrl = document.getElementById('realtimeControls');
-            const tgCtrl = document.getElementById('targetControls');
-            const qCtrl = document.getElementById('queueControls');
-
-            // Reset tab highlights
-            [rtBtn, tgBtn, qBtn].forEach(b => b.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white");
-            [rtCtrl, tgCtrl, qCtrl].forEach(c => c.classList.add('hidden'));
-
-            if (mode === 'realtime') {
-                rtBtn.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
-                rtCtrl.classList.remove('hidden');
-            } else if (mode === 'target') {
-                tgBtn.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
-                tgCtrl.classList.remove('hidden');
-                populateTargetLandingInputDefault();
-            } else if (mode === 'queue') {
-                qBtn.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
-                qCtrl.classList.remove('hidden');
-                updateQueuePrepDisplay();
-            }
-            calculateSync();
-        }
-
-        function adjustQueueTimer(seconds) {
-            queuePrepSec = Math.max(1, queuePrepSec + seconds);
-            updateQueuePrepDisplay();
+            let text = `${modeTitles[syncMode] || '⚔️ ALLIANCE BATTLE MARCH ORDERS ⚔️'}\n`;
+            text += `--------------------------------------------------\n`;
+            text += `NOTE: Standard 10s March Time assumed for all players.\n`;
+            text += `Adjust your dispatch time if your march time differs.\n`;
+            text += `--------------------------------------------------\n`;
+            
             if (syncMode === 'queue') {
-                calculateSync();
+                if (tEnemyImpact) text += `INCOMING ENEMY LANDS: ${formatUtc(tEnemyImpact)}\n\n`;
+                
+                text += `[ PHASE 1: POST-LAND BARRAGE SOLOS ]\n`;
+                if (triggers.postSolo1) text += `• Solo 1 Launch: ${formatUtc(triggers.postSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
+                if (triggers.postSolo2) text += `• Solo 2 Launch: ${formatUtc(triggers.postSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
+                if (triggers.postSolo3) text += `• Solo 3 Launch: ${formatUtc(triggers.postSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
+
+                text += `\n[ PHASE 2: OUR RE-CAP RALLY ]\n`;
+                if (triggers.recapRally) text += `• Rally Lead Launch: ${formatUtc(triggers.recapRally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
+
+                text += `\n[ PHASE 3: PRE-RECAP SOFTENING SOLOS ]\n`;
+                if (triggers.preSolo1) text += `• Softener 1 Launch: ${formatUtc(triggers.preSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
+                if (triggers.preSolo2) text += `• Softener 2 Launch: ${formatUtc(triggers.preSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
+                if (triggers.preSolo3) text += `• Softener 3 Launch: ${formatUtc(triggers.preSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
+
+                if (tImpact) text += `\nESTIMATED RE-CAP RALLY IMPACT: ${formatUtc(tImpact)}\n`;
+            } else {
+                text += `RALLY LEAD:\n`;
+                if (triggers.rally) text += `• Rally Start: ${formatUtc(triggers.rally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
+                
+                text += `\nSOLO MARCHES:\n`;
+                if (triggers.solo1) text += `• Solo 1 Launch: ${formatUtc(triggers.solo1.triggerMs)} (March: ${marchDurations.solo1}s | Offset: ${offsets.solo1.toFixed(1)}s)\n`;
+                if (triggers.solo2) text += `• Solo 2 Launch: ${formatUtc(triggers.solo2.triggerMs)} (March: ${marchDurations.solo2}s | Offset: ${offsets.solo2.toFixed(1)}s)\n`;
+                if (triggers.solo3) text += `• Solo 3 Launch: ${formatUtc(triggers.solo3.triggerMs)} (March: ${marchDurations.solo3}s | Offset: ${offsets.solo3.toFixed(1)}s)\n`;
+
+                if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
             }
+
+            text += `--------------------------------------------------\n`;
+            text += `To watch live triggers visit: www.asktechdad.com/rally-sync\n`;
+            text += `Please keep messaging to a minimum in the channel during battle.`;
+
+            // Fallback execCommand for iframe compatibility
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                showCopyToast();
+            } catch (err) {
+                console.warn("Copy to clipboard failed", err);
+            }
+            document.body.removeChild(textArea);
         }
 
-        function updateQueuePrepDisplay() {
-            const m = Math.floor(queuePrepSec / 60);
-            const s = queuePrepSec % 60;
-            document.getElementById('queuePrepDisplay').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        function showCopyToast() {
+            let toast = document.getElementById('copyToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'copyToast';
+                toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-emerald-400 transition-all transform translate-y-10 opacity-0';
+                toast.innerHTML = `<i class="fa-solid fa-clipboard-check text-sm"></i> March Orders Copied to Clipboard!`;
+                document.body.appendChild(toast);
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-10', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 3000);
         }
 
         function lockQueueSync() {
-            tRallyStart = Date.now();
+            tEnemyImpact = Date.now() + (queuePrepSec * 1000);
             calculateSync();
+            copyMarchOrdersToClipboard();
             playBeep(523.25, 'sine', 0.15);
-        }
-
-        function populateTargetLandingInputDefault() {
-            const minTimestamp = getMinLandingTimestamp();
-            document.getElementById('minLandingDisplay').innerText = formatTimeMs(minTimestamp);
-
-            const d = new Date(minTimestamp);
-            const tzOffset = d.getTimezoneOffset() * 60000;
-            const localIso = new Date(d.getTime() - tzOffset).toISOString().slice(0, 23);
-            
-            const input = document.getElementById('targetLandingInput');
-            input.value = localIso;
-            input.min = localIso;
-        }
-
-        function validateTargetLandingInput() {
-            const val = document.getElementById('targetLandingInput').value;
-            if (!val) return;
-            const chosenMs = new Date(val).getTime();
-            const minMs = getMinLandingTimestamp();
-
-            if (chosenMs < minMs) {
-                // Auto-clamp to minimum required landing timestamp
-                populateTargetLandingInputDefault();
-            }
         }
 
         function triggerRallyNow() {
             tRallyStart = Date.now();
             calculateSync();
+            copyMarchOrdersToClipboard();
             playBeep(659.25, 'triangle', 0.2); // E5 start sound
         }
 
@@ -558,6 +578,7 @@
             tRallyStart = tImpact - RALLY_BAKE_MS - (rallyMarchSec * 1000);
             
             calculateSync();
+            copyMarchOrdersToClipboard();
             playBeep(523.25, 'sine', 0.15);
         }
 
@@ -571,51 +592,102 @@
             offsets.solo2 = parseFloat(document.getElementById('solo2OffsetSec').value) || 0;
             offsets.solo3 = parseFloat(document.getElementById('solo3OffsetSec').value) || 0;
 
-            // Update Badges & Math Explainer
-            document.getElementById('solo1OffsetBadge').innerText = `${offsets.solo1 >= 0 ? '+' : ''}${offsets.solo1.toFixed(1)}s`;
-            document.getElementById('solo2OffsetBadge').innerText = `${offsets.solo2 >= 0 ? '+' : ''}${offsets.solo2.toFixed(1)}s`;
-            document.getElementById('solo3OffsetBadge').innerText = `${offsets.solo3 >= 0 ? '+' : ''}${offsets.solo3.toFixed(1)}s`;
+            document.getElementById('solo1OffsetSec').value = offsets.solo1;
+            document.getElementById('solo2OffsetSec').value = offsets.solo2;
+            document.getElementById('solo3OffsetSec').value = offsets.solo3;
 
-            const activePrepMs = (syncMode === 'queue') ? (queuePrepSec * 1000) : RALLY_BAKE_MS;
-            const totalRallySpanSec = (activePrepMs / 1000) + marchDurations.rally;
-
+            const totalRallySpanSec = 300 + marchDurations.rally;
             document.getElementById('mathRallyMarch').innerText = `${marchDurations.rally.toFixed(1)}s`;
             document.getElementById('mathTotalRallySpan').innerText = `${totalRallySpanSec.toFixed(1)}s`;
             document.getElementById('mathAnchorOffset').innerText = `+${totalRallySpanSec.toFixed(1)}s after Rally Start`;
 
             if (syncMode === 'target') {
+                document.getElementById('targetLabel').innerText = "Calculated Target Impact";
+                document.getElementById('secondaryLabel').innerText = "Rally Start Timestamp";
+                document.getElementById('targetLineBadge').innerText = "RALLY IMPACT";
+
                 const minMs = getMinLandingTimestamp();
                 document.getElementById('minLandingDisplay').innerText = formatTimeMs(minMs);
-                if (!tImpact || tImpact < minMs) {
-                    tImpact = minMs;
+
+                if (tImpact) {
+                    tRallyStart = tImpact - RALLY_BAKE_MS - (marchDurations.rally * 1000);
+                    triggers = {
+                        rally: { id: 'cardRally', title: 'RALLY HOST START', icon: 'fa-crown', color: 'amber', triggerMs: tRallyStart, badge: '5m Prep', action: 'LAUNCH RALLY' },
+                        solo1: { id: 'cardSolo1', title: 'SOLO MARCH 1', icon: 'fa-jet-fighter', color: 'sky', triggerMs: tImpact + (offsets.solo1 * 1000) - (marchDurations.solo1 * 1000), badge: `Offset: ${offsets.solo1 >= 0 ? '+' : ''}${offsets.solo1.toFixed(1)}s`, action: 'DISPATCH SOLO 1' },
+                        solo2: { id: 'cardSolo2', title: 'SOLO MARCH 2', icon: 'fa-jet-fighter', color: 'indigo', triggerMs: tImpact + (offsets.solo2 * 1000) - (marchDurations.solo2 * 1000), badge: `Offset: ${offsets.solo2 >= 0 ? '+' : ''}${offsets.solo2.toFixed(1)}s`, action: 'DISPATCH SOLO 2' },
+                        solo3: { id: 'cardSolo3', title: 'SOLO MARCH 3', icon: 'fa-jet-fighter', color: 'purple', triggerMs: tImpact + (offsets.solo3 * 1000) - (marchDurations.solo3 * 1000), badge: `Offset: ${offsets.solo3 >= 0 ? '+' : ''}${offsets.solo3.toFixed(1)}s`, action: 'DISPATCH SOLO 3' }
+                    };
+                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tImpact);
+                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tRallyStart);
+                } else {
+                    triggers = {};
+                    document.getElementById('targetImpactDisplay').innerText = "SET TARGET TIME";
+                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
                 }
-                tRallyStart = tImpact - RALLY_BAKE_MS - (marchDurations.rally * 1000);
+
             } else if (syncMode === 'queue') {
-                if (!tRallyStart) {
-                    tRallyStart = Date.now();
+                document.getElementById('targetLabel').innerText = "Incoming Enemy Impact Anchor";
+                document.getElementById('secondaryLabel').innerText = "Our Re-Cap Rally Impact";
+                document.getElementById('targetLineBadge').innerText = "ENEMY LANDS (FLIP)";
+
+                if (tEnemyImpact) {
+                    // Re-Cap Rally lands after initial post-land barrage
+                    tImpact = tEnemyImpact + 10000; // Re-Cap Rally lands 10s after enemy hit
+                    tRallyStart = tImpact - RALLY_BAKE_MS - (marchDurations.rally * 1000);
+
+                    // Post-Land Solos (Phase 1: Land immediately AFTER enemy lands)
+                    const post1Land = tEnemyImpact + 500;   // +0.5s
+                    const post2Land = tEnemyImpact + 1200;  // +1.2s
+                    const post3Land = tEnemyImpact + 2000;  // +2.0s
+
+                    // Pre-Rally Solos (Phase 2: Land just BEFORE our Re-Cap Rally)
+                    const pre1Land = tImpact - 2000; // -2.0s before our rally
+                    const pre2Land = tImpact - 1200; // -1.2s before our rally
+                    const pre3Land = tImpact - 500;  // -0.5s before our rally
+
+                    triggers = {
+                        enemy: { id: 'cardEnemy', title: 'INCOMING ENEMY RALLY LANDS', icon: 'fa-skull', color: 'rose', triggerMs: tEnemyImpact, badge: 'Target Castle Flip', action: 'ENEMY IMPACT', isAnchor: true },
+                        postSolo1: { id: 'cardPostSolo1', title: 'POST-LAND BARRAGE SOLO 1', icon: 'fa-bolt', color: 'rose', triggerMs: post1Land - (marchDurations.solo1 * 1000), badge: 'Hits +0.5s After Enemy', action: 'DISPATCH BARRAGE 1' },
+                        postSolo2: { id: 'cardPostSolo2', title: 'POST-LAND BARRAGE SOLO 2', icon: 'fa-bolt', color: 'pink', triggerMs: post2Land - (marchDurations.solo2 * 1000), badge: 'Hits +1.2s After Enemy', action: 'DISPATCH BARRAGE 2' },
+                        postSolo3: { id: 'cardPostSolo3', title: 'POST-LAND BARRAGE SOLO 3', icon: 'fa-bolt', color: 'fuchsia', triggerMs: post3Land - (marchDurations.solo3 * 1000), badge: 'Hits +2.0s After Enemy', action: 'DISPATCH BARRAGE 3' },
+                        recapRally: { id: 'cardRecapRally', title: 'OUR RE-CAP RALLY LAUNCH', icon: 'fa-crown', color: 'amber', triggerMs: tRallyStart, badge: '5m Prep Re-Cap', action: 'LAUNCH RE-CAP RALLY' },
+                        preSolo1: { id: 'cardPreSolo1', title: 'PRE-RECAP SOFTENER SOLO 1', icon: 'fa-shield-halved', color: 'sky', triggerMs: pre1Land - (marchDurations.solo1 * 1000), badge: 'Hits -2.0s Before Rally', action: 'DISPATCH SOFTENER 1' },
+                        preSolo2: { id: 'cardPreSolo2', title: 'PRE-RECAP SOFTENER SOLO 2', icon: 'fa-shield-halved', color: 'indigo', triggerMs: pre2Land - (marchDurations.solo2 * 1000), badge: 'Hits -1.2s Before Rally', action: 'DISPATCH SOFTENER 2' },
+                        preSolo3: { id: 'cardPreSolo3', title: 'PRE-RECAP SOFTENER SOLO 3', icon: 'fa-shield-halved', color: 'purple', triggerMs: pre3Land - (marchDurations.solo3 * 1000), badge: 'Hits -0.5s Before Rally', action: 'DISPATCH SOFTENER 3' }
+                    };
+
+                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tEnemyImpact);
+                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tImpact);
+                } else {
+                    triggers = {};
+                    document.getElementById('targetImpactDisplay').innerText = "LOCK ENEMY TIMER";
+                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
                 }
-                tImpact = tRallyStart + activePrepMs + (marchDurations.rally * 1000);
+
             } else {
-                if (!tRallyStart) {
-                    tRallyStart = Date.now();
+                // Realtime Mode
+                document.getElementById('targetLabel').innerText = "Calculated Target Impact";
+                document.getElementById('secondaryLabel').innerText = "Rally Start Timestamp";
+                document.getElementById('targetLineBadge').innerText = "RALLY IMPACT";
+
+                if (tRallyStart) {
+                    tImpact = tRallyStart + RALLY_BAKE_MS + (marchDurations.rally * 1000);
+
+                    triggers = {
+                        rally: { id: 'cardRally', title: 'RALLY HOST START', icon: 'fa-crown', color: 'amber', triggerMs: tRallyStart, badge: '5m Prep', action: 'LAUNCH RALLY' },
+                        solo1: { id: 'cardSolo1', title: 'SOLO MARCH 1', icon: 'fa-jet-fighter', color: 'sky', triggerMs: tImpact + (offsets.solo1 * 1000) - (marchDurations.solo1 * 1000), badge: `Offset: ${offsets.solo1 >= 0 ? '+' : ''}${offsets.solo1.toFixed(1)}s`, action: 'DISPATCH SOLO 1' },
+                        solo2: { id: 'cardSolo2', title: 'SOLO MARCH 2', icon: 'fa-jet-fighter', color: 'indigo', triggerMs: tImpact + (offsets.solo2 * 1000) - (marchDurations.solo2 * 1000), badge: `Offset: ${offsets.solo2 >= 0 ? '+' : ''}${offsets.solo2.toFixed(1)}s`, action: 'DISPATCH SOLO 2' },
+                        solo3: { id: 'cardSolo3', title: 'SOLO MARCH 3', icon: 'fa-jet-fighter', color: 'purple', triggerMs: tImpact + (offsets.solo3 * 1000) - (marchDurations.solo3 * 1000), badge: `Offset: ${offsets.solo3 >= 0 ? '+' : ''}${offsets.solo3.toFixed(1)}s`, action: 'DISPATCH SOLO 3' }
+                    };
+
+                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tImpact);
+                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tRallyStart);
+                } else {
+                    triggers = {};
+                    document.getElementById('targetImpactDisplay').innerText = "AWAITING RALLY LAUNCH";
+                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
                 }
-                tImpact = tRallyStart + RALLY_BAKE_MS + (marchDurations.rally * 1000);
             }
-
-            // Calculate Trigger Times (Dispatches)
-            triggers.rally = tRallyStart;
-            triggers.solo1 = tImpact + (offsets.solo1 * 1000) - (marchDurations.solo1 * 1000);
-            triggers.solo2 = tImpact + (offsets.solo2 * 1000) - (marchDurations.solo2 * 1000);
-            triggers.solo3 = tImpact + (offsets.solo3 * 1000) - (marchDurations.solo3 * 1000);
-
-            // Render timetable values
-            document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tImpact);
-            document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tRallyStart);
-
-            document.getElementById('rallyTriggerTime').innerText = formatTimeMs(triggers.rally);
-            document.getElementById('solo1TriggerTime').innerText = formatTimeMs(triggers.solo1);
-            document.getElementById('solo2TriggerTime').innerText = formatTimeMs(triggers.solo2);
-            document.getElementById('solo3TriggerTime').innerText = formatTimeMs(triggers.solo3);
         }
 
         function formatTimeMs(epochMs) {
@@ -628,102 +700,182 @@
             return `${hh}:${mm}:${ss}.${ms}`;
         }
 
-        function formatTime(epochMs, includeMs = false) {
-            return formatTimeMs(epochMs);
-        }
-
         // --- Main Engine Loop (Millisecond Precision) ---
         let lastBeepedState = {};
 
         function tick() {
             const now = Date.now();
 
-            updateCard('cardRally', 'rallyCountdown', 'rallyStatus', triggers.rally, 'LAUNCH RALLY', now);
-            updateCard('cardSolo1', 'solo1Countdown', 'solo1Status', triggers.solo1, 'DISPATCH SOLO 1', now);
-            updateCard('cardSolo2', 'solo2Countdown', 'solo2Status', triggers.solo2, 'DISPATCH SOLO 2', now);
-            updateCard('cardSolo3', 'solo3Countdown', 'solo3Status', triggers.solo3, 'DISPATCH SOLO 3', now);
-
+            renderSortedTriggerCards(now);
             renderLiveTracks(now);
 
             requestAnimationFrame(tick);
         }
 
-        function updateCard(cardId, countId, statusId, triggerTime, actionName, now) {
-            const card = document.getElementById(cardId);
-            const countEl = document.getElementById(countId);
-            const statusEl = document.getElementById(statusId);
+        function renderSortedTriggerCards(now) {
+            const container = document.getElementById('cardsList');
+            if (!container) return;
 
-            if (!triggerTime) return;
+            const sortedTriggers = Object.values(triggers).sort((a, b) => a.triggerMs - b.triggerMs);
 
-            const diff = triggerTime - now;
-
-            if (diff > 0) {
-                const totalSec = diff / 1000;
-                const mins = Math.floor(totalSec / 60);
-                const secs = (totalSec % 60).toFixed(1);
-                const displaySecs = String(secs).padStart(4, '0');
-                
-                countEl.innerText = `${String(mins).padStart(2, '0')}:${displaySecs}`;
-                
-                if (diff <= 3000) {
-                    // Urgent Launch Window (< 3s)
-                    card.className = "glass-panel rounded-2xl p-4 border-2 border-fire-500 bg-fire-500/15 glow-orange animate-pulse";
-                    statusEl.innerText = `🚨 LAUNCH NOW IN ${(diff/1000).toFixed(1)}s!`;
-                    statusEl.className = "text-[10px] font-extrabold text-fire-400 uppercase tracking-wider";
-
-                    const secondKey = Math.ceil(diff / 1000);
-                    if (!lastBeepedState[cardId + secondKey]) {
-                        playBeep(secondKey === 1 ? 1046.50 : 783.99, 'sine', 0.08); // Audio cues
-                        lastBeepedState[cardId + secondKey] = true;
-                    }
-                } else if (diff <= 15000) {
-                    // Lead Up / Warm-up Phase (15s to 3s)
-                    card.className = "glass-panel rounded-2xl p-4 border border-amber-500/60 bg-amber-950/30";
-                    statusEl.innerHTML = `<i class="fa-solid fa-hand-pointer animate-bounce mr-1"></i> PREP IN-GAME: TARGET & TROOPS READY`;
-                    statusEl.className = "text-[10px] font-bold text-amber-300 uppercase tracking-wider";
-
-                    const secondKey = Math.ceil(diff / 1000);
-                    if (secondKey === 15 && !lastBeepedState[cardId + 'prep15']) {
-                        playBeep(440.00, 'triangle', 0.12); // Prep notification tone
-                        lastBeepedState[cardId + 'prep15'] = true;
-                    }
-                } else {
-                    card.className = "glass-panel rounded-2xl p-4 border border-slate-800";
-                    statusEl.innerText = "WAITING FOR DISPATCH";
-                    statusEl.className = "text-[10px] font-semibold text-slate-500 uppercase tracking-wider";
-                }
-            } else if (diff > -4000) {
-                // Active Launch Window
-                countEl.innerText = "00:00.0";
-                card.className = "glass-panel rounded-2xl p-4 border-2 border-emerald-500 bg-emerald-500/20 glow-blue";
-                statusEl.innerText = `⚡ DISPATCHED! (${actionName})`;
-                statusEl.className = "text-[10px] font-black text-emerald-400 uppercase tracking-wider animate-bounce";
-            } else {
-                // Post Dispatch
-                countEl.innerText = "00:00.0";
-                card.className = "glass-panel rounded-2xl p-4 border border-slate-800 opacity-60";
-                statusEl.innerText = "MARCH IN FLIGHT";
-                statusEl.className = "text-[10px] font-semibold text-slate-500 uppercase tracking-wider";
+            if (sortedTriggers.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-panel rounded-2xl p-6 text-center border border-slate-800/80">
+                        <i class="fa-solid fa-hourglass-start text-2xl text-slate-600 mb-2"></i>
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Awaiting Execution Trigger</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Select your mode controls on the left panel to lock timing and generate triggers.</div>
+                    </div>
+                `;
+                return;
             }
+
+            container.innerHTML = sortedTriggers.map(t => {
+                const diff = t.triggerMs - now;
+                let cardStyle = "glass-panel rounded-2xl p-4 border border-slate-800";
+                let statusText = "WAITING FOR DISPATCH";
+                let statusStyle = "text-[10px] font-semibold text-slate-500 uppercase tracking-wider";
+                let countDisplay = "00:00.0";
+
+                if (diff > 0) {
+                    const totalSec = diff / 1000;
+                    const mins = Math.floor(totalSec / 60);
+                    const secs = (totalSec % 60).toFixed(1);
+                    countDisplay = `${String(mins).padStart(2, '0')}:${String(secs).padStart(4, '0')}`;
+
+                    if (diff <= 3000) {
+                        cardStyle = "glass-panel rounded-2xl p-4 border-2 border-fire-500 bg-fire-500/15 glow-orange animate-pulse";
+                        statusText = `🚨 LAUNCH NOW IN ${(diff/1000).toFixed(1)}s!`;
+                        statusStyle = "text-[10px] font-extrabold text-fire-400 uppercase tracking-wider";
+
+                        const secondKey = Math.ceil(diff / 1000);
+                        if (!lastBeepedState[t.id + secondKey]) {
+                            playBeep(secondKey === 1 ? 1046.50 : 783.99, 'sine', 0.08);
+                            lastBeepedState[t.id + secondKey] = true;
+                        }
+                    } else if (diff <= 15000) {
+                        cardStyle = "glass-panel rounded-2xl p-4 border border-amber-500/60 bg-amber-950/30";
+                        statusText = `<i class="fa-solid fa-hand-pointer animate-bounce mr-1"></i> PREP IN-GAME: TARGET READY`;
+                        statusStyle = "text-[10px] font-bold text-amber-300 uppercase tracking-wider";
+
+                        const secondKey = Math.ceil(diff / 1000);
+                        if (secondKey === 15 && !lastBeepedState[t.id + 'prep15']) {
+                            playBeep(440.00, 'triangle', 0.12);
+                            lastBeepedState[t.id + 'prep15'] = true;
+                        }
+                    }
+                } else if (diff > -4000) {
+                    countDisplay = "00:00.0";
+                    cardStyle = "glass-panel rounded-2xl p-4 border-2 border-emerald-500 bg-emerald-500/20 glow-blue";
+                    statusText = `⚡ EXECUTED! (${t.action})`;
+                    statusStyle = "text-[10px] font-black text-emerald-400 uppercase tracking-wider animate-bounce";
+                } else {
+                    countDisplay = "00:00.0";
+                    cardStyle = "glass-panel rounded-2xl p-4 border border-slate-800 opacity-60";
+                    statusText = t.isAnchor ? "TARGET IMPACT PASSED" : "MARCH IN FLIGHT";
+                    statusStyle = "text-[10px] font-semibold text-slate-500 uppercase tracking-wider";
+                }
+
+                const colorClasses = {
+                    amber: "bg-amber-500/10 border-amber-500/30 text-amber-400",
+                    rose: "bg-rose-500/10 border-rose-500/30 text-rose-400",
+                    pink: "bg-pink-500/10 border-pink-500/30 text-pink-400",
+                    fuchsia: "bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-400",
+                    sky: "bg-sky-500/10 border-sky-500/30 text-sky-400",
+                    indigo: "bg-indigo-500/10 border-indigo-500/30 text-indigo-400",
+                    purple: "bg-purple-500/10 border-purple-500/30 text-purple-400"
+                };
+
+                return `
+                    <div id="${t.id}" class="${cardStyle} transition-all duration-300">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-sm ${colorClasses[t.color] || colorClasses.amber}">
+                                    <i class="fa-solid ${t.icon}"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-white flex items-center gap-2">
+                                        ${t.title}
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">${t.badge}</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 font-mono">
+                                        Trigger: <span class="text-slate-200">${formatTimeMs(t.triggerMs)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-black font-mono text-slate-300">${countDisplay}</div>
+                                <div class="${statusStyle}">${statusText}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderLiveTracks(now) {
             const container = document.getElementById('timelineTracks');
-            if (!tImpact) return;
+            if (!container) return;
 
-            const totalSequenceDurationMs = RALLY_BAKE_MS + (marchDurations.rally * 1000); // 300s + Rally March
-            const totalSequenceStart = tRallyStart;
+            let tracks = [];
 
-            const marches = [
-                { id: 'solo1', label: 'Solo 1', trigger: triggers.solo1, durationSec: marchDurations.solo1, offsetSec: offsets.solo1, color: 'bg-sky-400', icon: 'fa-jet-fighter', isRally: false },
-                { id: 'solo2', label: 'Solo 2', trigger: triggers.solo2, durationSec: marchDurations.solo2, offsetSec: offsets.solo2, color: 'bg-indigo-400', icon: 'fa-jet-fighter', isRally: false },
-                { id: 'solo3', label: 'Solo 3', trigger: triggers.solo3, durationSec: marchDurations.solo3, offsetSec: offsets.solo3, color: 'bg-purple-400', icon: 'fa-jet-fighter', isRally: false },
-                { id: 'rally', label: 'Rally Lead', trigger: tRallyStart, durationSec: marchDurations.rally, offsetSec: 0, color: 'bg-fire-500', icon: 'fa-crown', isRally: true }
-            ];
+            if (syncMode === 'queue') {
+                if (!tEnemyImpact) {
+                    container.innerHTML = `<div class="text-xs text-slate-500 font-mono text-center py-4">Lock Enemy Rally Timer to visualize arrival tracks.</div>`;
+                    return;
+                }
+                const post1Trigger = tEnemyImpact + 500 - (marchDurations.solo1 * 1000);
+                const post2Trigger = tEnemyImpact + 1200 - (marchDurations.solo2 * 1000);
+                const post3Trigger = tEnemyImpact + 2000 - (marchDurations.solo3 * 1000);
 
-            container.innerHTML = marches.map(m => {
+                const pre1Trigger = tImpact - 2000 - (marchDurations.solo1 * 1000);
+                const pre2Trigger = tImpact - 1200 - (marchDurations.solo2 * 1000);
+                const pre3Trigger = tImpact - 500 - (marchDurations.solo3 * 1000);
+
+                tracks = [
+                    { id: 'enemyImpact', label: 'Incoming Enemy Whale Landing', trigger: tEnemyImpact, durationSec: 0, isAnchor: true, color: 'bg-rose-500', icon: 'fa-skull' },
+                    { id: 'postSolo1', label: 'Post-Land Solo 1 (Barrage)', trigger: post1Trigger, durationSec: marchDurations.solo1, color: 'bg-rose-400', icon: 'fa-bolt' },
+                    { id: 'postSolo2', label: 'Post-Land Solo 2 (Barrage)', trigger: post2Trigger, durationSec: marchDurations.solo2, color: 'bg-pink-400', icon: 'fa-bolt' },
+                    { id: 'postSolo3', label: 'Post-Land Solo 3 (Barrage)', trigger: post3Trigger, durationSec: marchDurations.solo3, color: 'bg-fuchsia-400', icon: 'fa-bolt' },
+                    { id: 'recapRally', label: 'Our Alliance Re-Cap Rally', trigger: tRallyStart, durationSec: marchDurations.rally, isRally: true, color: 'bg-fire-500', icon: 'fa-crown' },
+                    { id: 'preSolo1', label: 'Pre-Rally Softener 1', trigger: pre1Trigger, durationSec: marchDurations.solo1, color: 'bg-sky-400', icon: 'fa-shield-halved' },
+                    { id: 'preSolo2', label: 'Pre-Rally Softener 2', trigger: pre2Trigger, durationSec: marchDurations.solo2, color: 'bg-indigo-400', icon: 'fa-shield-halved' },
+                    { id: 'preSolo3', label: 'Pre-Rally Softener 3', trigger: pre3Trigger, durationSec: marchDurations.solo3, color: 'bg-purple-400', icon: 'fa-shield-halved' }
+                ];
+            } else {
+                if (!tImpact) {
+                    container.innerHTML = `<div class="text-xs text-slate-500 font-mono text-center py-4">Trigger Rally Start or set Target Time to visualize arrival tracks.</div>`;
+                    return;
+                }
+                tracks = [
+                    { id: 'solo1', label: 'Solo 1', trigger: triggers.solo1 ? triggers.solo1.triggerMs : 0, durationSec: marchDurations.solo1, offsetSec: offsets.solo1, color: 'bg-sky-400', icon: 'fa-jet-fighter' },
+                    { id: 'solo2', label: 'Solo 2', trigger: triggers.solo2 ? triggers.solo2.triggerMs : 0, durationSec: marchDurations.solo2, offsetSec: offsets.solo2, color: 'bg-indigo-400', icon: 'fa-jet-fighter' },
+                    { id: 'solo3', label: 'Solo 3', trigger: triggers.solo3 ? triggers.solo3.triggerMs : 0, durationSec: marchDurations.solo3, offsetSec: offsets.solo3, color: 'bg-purple-400', icon: 'fa-jet-fighter' },
+                    { id: 'rally', label: 'Rally Lead', trigger: tRallyStart, durationSec: marchDurations.rally, offsetSec: 0, color: 'bg-fire-500', icon: 'fa-crown', isRally: true }
+                ];
+            }
+
+            const totalSequenceDurationMs = RALLY_BAKE_MS + (marchDurations.rally * 1000);
+
+            container.innerHTML = tracks.map(m => {
+                if (m.isAnchor) {
+                    const diff = m.trigger - now;
+                    const statusText = diff > 0 ? `Enemy Landing in ${(diff/1000).toFixed(1)}s` : "Castle Control Flipped!";
+                    return `
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[11px] font-mono">
+                                <span class="font-bold text-rose-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-skull text-[10px]"></i> ${m.label}
+                                </span>
+                                <span class="text-rose-300 font-bold">${statusText}</span>
+                            </div>
+                            <div class="h-2 bg-rose-950 rounded-full overflow-hidden border border-rose-500/40">
+                                <div class="h-full bg-rose-500 animate-pulse" style="width: ${diff <= 0 ? 100 : 0}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 if (m.isRally) {
-                    // Rally has 2 phases: Prep Phase (300s) + March Phase (45s)
                     const tPrepEnd = tRallyStart + RALLY_BAKE_MS;
                     let statusText = "";
                     let marchProgressPct = 0;
@@ -748,16 +900,14 @@
                         <div class="space-y-1">
                             <div class="flex justify-between text-[11px] font-mono">
                                 <span class="font-bold text-amber-400 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-crown text-[10px]"></i> Rally Captain (5m Prep + ${m.durationSec}s March)
+                                    <i class="fa-solid fa-crown text-[10px]"></i> ${m.label} (5m Prep + ${m.durationSec}s March)
                                 </span>
                                 <span class="text-amber-300 font-medium">${statusText}</span>
                             </div>
                             <div class="h-3 bg-slate-900 rounded-full overflow-hidden border border-amber-500/30 relative flex">
-                                <!-- 5 Min Prep Visual Block -->
                                 <div class="h-full bg-amber-500/20 border-r border-amber-500/50 flex items-center justify-center text-[8px] font-bold text-amber-300 uppercase tracking-tighter" style="width: ${(RALLY_BAKE_MS / totalSequenceDurationMs) * 100}%;">
                                     Prep (5m)
                                 </div>
-                                <!-- Rally Active March Track -->
                                 <div class="h-full bg-slate-900 relative flex-1">
                                     <div class="h-full bg-fire-500 transition-all duration-75 relative rounded-r-full" style="width: ${marchProgressPct}%;">
                                         ${marchProgressPct > 0 && marchProgressPct < 100 ? `
@@ -790,7 +940,7 @@
                     statusText = `In Flight: ${remainingSec}s to hit (${progressPct.toFixed(1)}%)`;
                 } else {
                     progressPct = 100;
-                    statusText = `LANDED (Offset: ${m.offsetSec >= 0 ? '+' : ''}${m.offsetSec.toFixed(1)}s)`;
+                    statusText = `LANDED ON TARGET`;
                 }
 
                 return `
