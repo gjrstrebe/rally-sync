@@ -92,12 +92,15 @@
                     <i class="fa-solid fa-sliders text-fire-500"></i> Sync Mode Setup
                 </h2>
                 
-                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-5">
-                    <button id="modeRealtimeBtn" onclick="setMode('realtime')" class="py-2 px-3 rounded-lg text-xs font-bold transition text-white bg-slate-800 shadow">
+                <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-5">
+                    <button id="modeRealtimeBtn" onclick="setMode('realtime')" class="py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow">
                         <i class="fa-solid fa-play mr-1 text-emerald-400"></i> Realtime (Host Start)
                     </button>
-                    <button id="modeTargetBtn" onclick="setMode('target')" class="py-2 px-3 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white">
+                    <button id="modeTargetBtn" onclick="setMode('target')" class="py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white">
                         <i class="fa-solid fa-clock mr-1 text-sky-400"></i> Planned Landing
+                    </button>
+                    <button id="modeQueueBtn" onclick="setMode('queue')" class="py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-list-check mr-1 text-amber-400"></i> Sync Queue Rally
                     </button>
                 </div>
 
@@ -124,6 +127,27 @@
                     </div>
                     <button onclick="setPlannedTarget()" class="w-full py-2.5 px-4 rounded-xl font-bold text-white bg-sky-600 hover:bg-sky-500 transition shadow-lg text-xs flex items-center justify-center gap-2">
                         <i class="fa-solid fa-calendar-check"></i> Lock Target Landing Time
+                    </button>
+                </div>
+
+                <!-- Sync Queue Rally Controls -->
+                <div id="queueControls" class="space-y-4 hidden">
+                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-amber-400">Active Prep Timer</span>
+                            <span id="queuePrepDisplay" class="text-sm font-mono font-black text-white">05:00</span>
+                        </div>
+                        <div class="grid grid-cols-6 gap-1">
+                            <button onclick="adjustQueueTimer(60)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+1m</button>
+                            <button onclick="adjustQueueTimer(-60)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-1m</button>
+                            <button onclick="adjustQueueTimer(30)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+30s</button>
+                            <button onclick="adjustQueueTimer(-30)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-30s</button>
+                            <button onclick="adjustQueueTimer(1)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">+1s</button>
+                            <button onclick="adjustQueueTimer(-1)" class="py-1 px-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300 font-bold border border-slate-700">-1s</button>
+                        </div>
+                    </div>
+                    <button onclick="lockQueueSync()" class="w-full py-3 px-4 rounded-xl font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 active:scale-[0.98] transition shadow-lg font-mono text-xs flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-lock text-slate-950"></i> LOCK FUTURE TARGET FROM TIMER
                     </button>
                 </div>
             </div>
@@ -367,11 +391,12 @@
     <script>
         // --- Core State Variables ---
         const RALLY_BAKE_MS = 300 * 1000; // 5 Minutes Prep Time in ms
-        let syncMode = 'realtime'; // 'realtime' | 'target'
+        let syncMode = 'realtime'; // 'realtime' | 'target' | 'queue'
         let audioEnabled = false;
         
         let tRallyStart = null;
         let tImpact = null;
+        let queuePrepSec = 300; // Default 5 mins for Queue tab
 
         let triggers = {
             rally: null,
@@ -442,23 +467,48 @@
             syncMode = mode;
             const rtBtn = document.getElementById('modeRealtimeBtn');
             const tgBtn = document.getElementById('modeTargetBtn');
+            const qBtn = document.getElementById('modeQueueBtn');
             const rtCtrl = document.getElementById('realtimeControls');
             const tgCtrl = document.getElementById('targetControls');
+            const qCtrl = document.getElementById('queueControls');
+
+            // Reset tab highlights
+            [rtBtn, tgBtn, qBtn].forEach(b => b.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white");
+            [rtCtrl, tgCtrl, qCtrl].forEach(c => c.classList.add('hidden'));
 
             if (mode === 'realtime') {
-                rtBtn.className = "py-2 px-3 rounded-lg text-xs font-bold transition text-white bg-slate-800 shadow";
-                tgBtn.className = "py-2 px-3 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white";
+                rtBtn.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
                 rtCtrl.classList.remove('hidden');
-                tgCtrl.classList.add('hidden');
-            } else {
-                tgBtn.className = "py-2 px-3 rounded-lg text-xs font-bold transition text-white bg-slate-800 shadow";
-                rtBtn.className = "py-2 px-3 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white";
+            } else if (mode === 'target') {
+                tgBtn.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
                 tgCtrl.classList.remove('hidden');
-                rtCtrl.classList.add('hidden');
-                
                 populateTargetLandingInputDefault();
+            } else if (mode === 'queue') {
+                qBtn.className = "py-2 px-2 rounded-lg text-[11px] font-bold transition text-white bg-slate-800 shadow";
+                qCtrl.classList.remove('hidden');
+                updateQueuePrepDisplay();
             }
             calculateSync();
+        }
+
+        function adjustQueueTimer(seconds) {
+            queuePrepSec = Math.max(1, queuePrepSec + seconds);
+            updateQueuePrepDisplay();
+            if (syncMode === 'queue') {
+                calculateSync();
+            }
+        }
+
+        function updateQueuePrepDisplay() {
+            const m = Math.floor(queuePrepSec / 60);
+            const s = queuePrepSec % 60;
+            document.getElementById('queuePrepDisplay').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function lockQueueSync() {
+            tRallyStart = Date.now();
+            calculateSync();
+            playBeep(523.25, 'sine', 0.15);
         }
 
         function populateTargetLandingInputDefault() {
@@ -526,7 +576,9 @@
             document.getElementById('solo2OffsetBadge').innerText = `${offsets.solo2 >= 0 ? '+' : ''}${offsets.solo2.toFixed(1)}s`;
             document.getElementById('solo3OffsetBadge').innerText = `${offsets.solo3 >= 0 ? '+' : ''}${offsets.solo3.toFixed(1)}s`;
 
-            const totalRallySpanSec = (RALLY_BAKE_MS / 1000) + marchDurations.rally;
+            const activePrepMs = (syncMode === 'queue') ? (queuePrepSec * 1000) : RALLY_BAKE_MS;
+            const totalRallySpanSec = (activePrepMs / 1000) + marchDurations.rally;
+
             document.getElementById('mathRallyMarch').innerText = `${marchDurations.rally.toFixed(1)}s`;
             document.getElementById('mathTotalRallySpan').innerText = `${totalRallySpanSec.toFixed(1)}s`;
             document.getElementById('mathAnchorOffset').innerText = `+${totalRallySpanSec.toFixed(1)}s after Rally Start`;
@@ -538,6 +590,11 @@
                     tImpact = minMs;
                 }
                 tRallyStart = tImpact - RALLY_BAKE_MS - (marchDurations.rally * 1000);
+            } else if (syncMode === 'queue') {
+                if (!tRallyStart) {
+                    tRallyStart = Date.now();
+                }
+                tImpact = tRallyStart + activePrepMs + (marchDurations.rally * 1000);
             } else {
                 if (!tRallyStart) {
                     tRallyStart = Date.now();
