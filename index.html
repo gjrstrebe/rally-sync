@@ -332,6 +332,53 @@
                 </div>
             </div>
 
+            <!-- NEW: Alliance Share & Clipboard Center -->
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-share-nodes text-sky-400"></i> Alliance Share Center (1-Tap Copy Buttons)
+                    </h2>
+                    <span class="text-[10px] text-slate-500 font-mono">Clean Chat Formats</span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <button onclick="copySpecificOrder('rules')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left transition group">
+                        <div class="text-[11px] font-bold text-amber-400 group-hover:text-amber-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-book-bookmark"></i> Room Rules
+                        </div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">March baseline & etiquette</div>
+                    </button>
+
+                    <button onclick="copySpecificOrder('compact')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 text-left transition group">
+                        <div class="text-[11px] font-bold text-emerald-400 group-hover:text-emerald-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-compress"></i> Compact Game Chat
+                        </div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Fits single game chat (UTCs)</div>
+                    </button>
+
+                    <button onclick="copySpecificOrder('rally')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left transition group">
+                        <div class="text-[11px] font-bold text-amber-400 group-hover:text-amber-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-crown"></i> Rally Lead Only
+                        </div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Rally launch timestamp</div>
+                    </button>
+
+                    <button onclick="copySpecificOrder('solos')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left transition group">
+                        <div class="text-[11px] font-bold text-sky-400 group-hover:text-sky-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-jet-fighter"></i> Solos Only
+                        </div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Solo launch timestamps</div>
+                    </button>
+
+                    <button onclick="copySpecificOrder('full')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left transition group col-span-2 sm:col-span-1">
+                        <div class="text-[11px] font-bold text-purple-400 group-hover:text-purple-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-lines"></i> Full Expanded Orders
+                        </div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Complete detailed block</div>
+                    </button>
+                </div>
+            </div>
+
             <!-- Impact Timeline Visualizer -->
             <div class="glass-panel rounded-2xl p-5 border border-slate-800">
                 <div class="flex justify-between items-center mb-4">
@@ -621,7 +668,7 @@
             }
 
             calculateSync();
-            copyMarchOrdersToClipboard();
+            copySpecificOrder('compact');
             playBeep(659.25, 'triangle', 0.2);
         }
 
@@ -699,9 +746,8 @@
             }
         }
 
-        function copyMarchOrdersToClipboard() {
-            if (!triggers || Object.keys(triggers).length === 0) return;
-
+        // Modular Share & Copy Clipboard System
+        function copySpecificOrder(type) {
             const formatUtc = (ms) => {
                 if (!ms) return 'N/A';
                 const d = new Date(ms);
@@ -711,59 +757,113 @@
                 return `${hh}:${mm}:${ss} UTC`;
             };
 
-            const modeTitles = {
-                realtime: '⚔️ ALLIANCE RALLY & SOLO MARCH COMMAND ORDERS ⚔️',
-                target: '🎯 PLANNED TARGET LANDING COMMAND ORDERS 🎯',
-                queue: '🚨 RE-CAP COUNTER-STRIKE COMMAND ORDERS 🚨',
-                custom: '🛠️ BUILD YOUR OWN ATTACK COMMAND ORDERS 🛠️'
-            };
+            let text = "";
 
-            let text = `${modeTitles[syncMode] || '⚔️ ALLIANCE BATTLE MARCH ORDERS ⚔️'}\n`;
-            text += `--------------------------------------------------\n`;
-            text += `NOTE: Standard 10s March Time assumed for all players.\n`;
-            text += `Adjust your dispatch time if your march time differs.\n`;
-            text += `--------------------------------------------------\n`;
-            
-            if (syncMode === 'custom') {
-                customSlots.forEach(s => {
-                    const trig = triggers[s.id];
-                    if (trig) {
-                        text += `• ${s.title}: Launch at ${formatUtc(trig.triggerMs)} (March: ${s.marchSec}s | Offset: ${s.offsetSec >= 0 ? '+' : ''}${s.offsetSec}s)\n`;
-                    }
-                });
-                if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
-            } else if (syncMode === 'queue') {
-                if (tEnemyImpact) text += `INCOMING ENEMY LANDS: ${formatUtc(tEnemyImpact)}\n\n`;
+            if (type === 'rules') {
+                text = `📌 [ALLIANCE BATTLE RULES]\n`;
+                text += `• Standard 10s March Time assumed.\n`;
+                text += `• Adjust dispatch time if your march differs.\n`;
+                text += `• Live Sync: www.asktechdad.com/rally-sync\n`;
+                text += `• Keep chat clear during operations!`;
+            } else if (type === 'compact') {
+                if (!triggers || Object.keys(triggers).length === 0) {
+                    text = "No active timing triggers generated yet.";
+                } else if (syncMode === 'queue') {
+                    text = `🚨 [RE-CAP ORDERS]\n`;
+                    if (tEnemyImpact) text += `• Enemy Lands: ${formatUtc(tEnemyImpact)}\n`;
+                    if (triggers.postSolo1) text += `• Post 1: ${formatUtc(triggers.postSolo1.triggerMs)} | Post 2: ${formatUtc(triggers.postSolo2.triggerMs)} | Post 3: ${formatUtc(triggers.postSolo3.triggerMs)}\n`;
+                    if (triggers.recapRally) text += `• Our Rally Launch: ${formatUtc(triggers.recapRally.triggerMs)}\n`;
+                    if (triggers.preSolo1) text += `• Soft 1: ${formatUtc(triggers.preSolo1.triggerMs)} | Soft 2: ${formatUtc(triggers.preSolo2.triggerMs)} | Soft 3: ${formatUtc(triggers.preSolo3.triggerMs)}`;
+                } else if (syncMode === 'custom') {
+                    text = `🛠️ [CUSTOM QUEUE]\n`;
+                    customSlots.forEach(s => {
+                        const trig = triggers[s.id];
+                        if (trig) text += `• ${s.title}: ${formatUtc(trig.triggerMs)}\n`;
+                    });
+                    if (tImpact) text += `Target Impact: ${formatUtc(tImpact)}`;
+                } else {
+                    text = `⚔️ [RALLY & SOLO ORDERS]\n`;
+                    if (triggers.rally) text += `• Rally Start: ${formatUtc(triggers.rally.triggerMs)}\n`;
+                    if (triggers.solo1) text += `• Solo 1: ${formatUtc(triggers.solo1.triggerMs)}\n`;
+                    if (triggers.solo2) text += `• Solo 2: ${formatUtc(triggers.solo2.triggerMs)}\n`;
+                    if (triggers.solo3) text += `• Solo 3: ${formatUtc(triggers.solo3.triggerMs)}`;
+                }
+            } else if (type === 'rally') {
+                if (syncMode === 'queue' && triggers.recapRally) {
+                    text = `👑 OUR RE-CAP RALLY LAUNCH: ${formatUtc(triggers.recapRally.triggerMs)} (5m Prep)`;
+                } else if (triggers.rally) {
+                    text = `👑 RALLY LEAD LAUNCH: ${formatUtc(triggers.rally.triggerMs)} (5m Prep)`;
+                } else {
+                    text = "No active rally trigger calculated.";
+                }
+            } else if (type === 'solos') {
+                if (syncMode === 'queue') {
+                    text = `🚀 [RE-CAP SOLOS]\n`;
+                    if (triggers.postSolo1) text += `• Post-Land Solos: 1) ${formatUtc(triggers.postSolo1.triggerMs)}  2) ${formatUtc(triggers.postSolo2.triggerMs)}  3) ${formatUtc(triggers.postSolo3.triggerMs)}\n`;
+                    if (triggers.preSolo1) text += `• Pre-Recap Solos: 1) ${formatUtc(triggers.preSolo1.triggerMs)}  2) ${formatUtc(triggers.preSolo2.triggerMs)}  3) ${formatUtc(triggers.preSolo3.triggerMs)}`;
+                } else {
+                    text = `🚀 [SOLO DISPATCH TIMES]\n`;
+                    if (triggers.solo1) text += `• Solo 1: ${formatUtc(triggers.solo1.triggerMs)}\n`;
+                    if (triggers.solo2) text += `• Solo 2: ${formatUtc(triggers.solo2.triggerMs)}\n`;
+                    if (triggers.solo3) text += `• Solo 3: ${formatUtc(triggers.solo3.triggerMs)}`;
+                }
+            } else if (type === 'full') {
+                const modeTitles = {
+                    realtime: '⚔️ ALLIANCE RALLY & SOLO MARCH COMMAND ORDERS ⚔️',
+                    target: '🎯 PLANNED TARGET LANDING COMMAND ORDERS 🎯',
+                    queue: '🚨 RE-CAP COUNTER-STRIKE COMMAND ORDERS 🚨',
+                    custom: '🛠️ BUILD YOUR OWN ATTACK COMMAND ORDERS 🛠️'
+                };
+
+                text = `${modeTitles[syncMode] || '⚔️ ALLIANCE BATTLE MARCH ORDERS ⚔️'}\n`;
+                text += `--------------------------------------------------\n`;
+                text += `NOTE: Standard 10s March Time assumed for all players.\n`;
+                text += `Adjust your dispatch time if your march time differs.\n`;
+                text += `--------------------------------------------------\n`;
                 
-                text += `[ PHASE 1: POST-LAND BARRAGE SOLOS ]\n`;
-                if (triggers.postSolo1) text += `• Solo 1 Launch: ${formatUtc(triggers.postSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
-                if (triggers.postSolo2) text += `• Solo 2 Launch: ${formatUtc(triggers.postSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
-                if (triggers.postSolo3) text += `• Solo 3 Launch: ${formatUtc(triggers.postSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
+                if (syncMode === 'custom') {
+                    customSlots.forEach(s => {
+                        const trig = triggers[s.id];
+                        if (trig) {
+                            text += `• ${s.title}: Launch at ${formatUtc(trig.triggerMs)} (March: ${s.marchSec}s | Offset: ${s.offsetSec >= 0 ? '+' : ''}${s.offsetSec}s)\n`;
+                        }
+                    });
+                    if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
+                } else if (syncMode === 'queue') {
+                    if (tEnemyImpact) text += `INCOMING ENEMY LANDS: ${formatUtc(tEnemyImpact)}\n\n`;
+                    
+                    text += `[ PHASE 1: POST-LAND BARRAGE SOLOS ]\n`;
+                    if (triggers.postSolo1) text += `• Solo 1 Launch: ${formatUtc(triggers.postSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
+                    if (triggers.postSolo2) text += `• Solo 2 Launch: ${formatUtc(triggers.postSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
+                    if (triggers.postSolo3) text += `• Solo 3 Launch: ${formatUtc(triggers.postSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
 
-                text += `\n[ PHASE 2: OUR RE-CAP RALLY ]\n`;
-                if (triggers.recapRally) text += `• Rally Lead Launch: ${formatUtc(triggers.recapRally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
+                    text += `\n[ PHASE 2: OUR RE-CAP RALLY ]\n`;
+                    if (triggers.recapRally) text += `• Rally Lead Launch: ${formatUtc(triggers.recapRally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
 
-                text += `\n[ PHASE 3: PRE-RECAP SOFTENING SOLOS ]\n`;
-                if (triggers.preSolo1) text += `• Softener 1 Launch: ${formatUtc(triggers.preSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
-                if (triggers.preSolo2) text += `• Softener 2 Launch: ${formatUtc(triggers.preSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
-                if (triggers.preSolo3) text += `• Softener 3 Launch: ${formatUtc(triggers.preSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
+                    text += `\n[ PHASE 3: PRE-RECAP SOFTENING SOLOS ]\n`;
+                    if (triggers.preSolo1) text += `• Softener 1 Launch: ${formatUtc(triggers.preSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
+                    if (triggers.preSolo2) text += `• Softener 2 Launch: ${formatUtc(triggers.preSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
+                    if (triggers.preSolo3) text += `• Softener 3 Launch: ${formatUtc(triggers.preSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
 
-                if (tImpact) text += `\nESTIMATED RE-CAP RALLY IMPACT: ${formatUtc(tImpact)}\n`;
-            } else {
-                text += `RALLY LEAD:\n`;
-                if (triggers.rally) text += `• Rally Start: ${formatUtc(triggers.rally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
-                
-                text += `\nSOLO MARCHES:\n`;
-                if (triggers.solo1) text += `• Solo 1 Launch: ${formatUtc(triggers.solo1.triggerMs)} (March: ${marchDurations.solo1}s | Offset: ${offsets.solo1.toFixed(1)}s)\n`;
-                if (triggers.solo2) text += `• Solo 2 Launch: ${formatUtc(triggers.solo2.triggerMs)} (March: ${marchDurations.solo2}s | Offset: ${offsets.solo2.toFixed(1)}s)\n`;
-                if (triggers.solo3) text += `• Solo 3 Launch: ${formatUtc(triggers.solo3.triggerMs)} (March: ${marchDurations.solo3}s | Offset: ${offsets.solo3.toFixed(1)}s)\n`;
+                    if (tImpact) text += `\nESTIMATED RE-CAP RALLY IMPACT: ${formatUtc(tImpact)}\n`;
+                } else {
+                    text += `RALLY LEAD:\n`;
+                    if (triggers.rally) text += `• Rally Start: ${formatUtc(triggers.rally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
+                    
+                    text += `\nSOLO MARCHES:\n`;
+                    if (triggers.solo1) text += `• Solo 1 Launch: ${formatUtc(triggers.solo1.triggerMs)} (March: ${marchDurations.solo1}s | Offset: ${offsets.solo1.toFixed(1)}s)\n`;
+                    if (triggers.solo2) text += `• Solo 2 Launch: ${formatUtc(triggers.solo2.triggerMs)} (March: ${marchDurations.solo2}s | Offset: ${offsets.solo2.toFixed(1)}s)\n`;
+                    if (triggers.solo3) text += `• Solo 3 Launch: ${formatUtc(triggers.solo3.triggerMs)} (March: ${marchDurations.solo3}s | Offset: ${offsets.solo3.toFixed(1)}s)\n`;
 
-                if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
+                    if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
+                }
+
+                text += `--------------------------------------------------\n`;
+                text += `To watch live triggers visit: www.asktechdad.com/rally-sync\n`;
+                text += `Please keep messaging to a minimum in the channel during battle.`;
             }
 
-            text += `--------------------------------------------------\n`;
-            text += `To watch live triggers visit: www.asktechdad.com/rally-sync\n`;
-            text += `Please keep messaging to a minimum in the channel during battle.`;
+            if (!text) return;
 
             const textArea = document.createElement("textarea");
             textArea.value = text;
@@ -775,23 +875,32 @@
 
             try {
                 document.execCommand('copy');
-                showCopyToast();
+                showCopyToast(type);
             } catch (err) {
                 console.warn("Copy to clipboard failed", err);
             }
             document.body.removeChild(textArea);
         }
 
-        function showCopyToast() {
+        function showCopyToast(type) {
             let toast = document.getElementById('copyToast');
             if (!toast) {
                 toast = document.createElement('div');
                 toast.id = 'copyToast';
                 toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-emerald-400 transition-all transform translate-y-10 opacity-0';
-                toast.innerHTML = `<i class="fa-solid fa-clipboard-check text-sm"></i> March Orders Copied to Clipboard!`;
                 document.body.appendChild(toast);
             }
             
+            const labels = {
+                rules: "Room Rules & Etiquette",
+                compact: "Compact In-Game Chat Format",
+                rally: "Rally Lead Launch Order",
+                solos: "Solo Dispatch Timestamps",
+                full: "Full Expanded Command Block"
+            };
+
+            toast.innerHTML = `<i class="fa-solid fa-clipboard-check text-sm"></i> ${labels[type] || 'Text'} Copied to Clipboard!`;
+
             setTimeout(() => {
                 toast.classList.remove('translate-y-10', 'opacity-0');
             }, 10);
@@ -804,14 +913,14 @@
         function lockQueueSync() {
             tEnemyImpact = Date.now() + (queuePrepSec * 1000);
             calculateSync();
-            copyMarchOrdersToClipboard();
+            copySpecificOrder('compact');
             playBeep(523.25, 'sine', 0.15);
         }
 
         function triggerRallyNow() {
             tRallyStart = Date.now();
             calculateSync();
-            copyMarchOrdersToClipboard();
+            copySpecificOrder('compact');
             playBeep(659.25, 'triangle', 0.2);
         }
 
@@ -831,7 +940,7 @@
             tRallyStart = tImpact - RALLY_BAKE_MS - (rallyMarchSec * 1000);
             
             calculateSync();
-            copyMarchOrdersToClipboard();
+            copySpecificOrder('compact');
             playBeep(523.25, 'sine', 0.15);
         }
 
