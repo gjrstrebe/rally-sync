@@ -421,766 +421,767 @@
 
     </main>
 
+    <!-- Hidden Canvas & Video Elements for Picture-in-Picture (PiP) Floating Overlay -->
+    <canvas id="pipCanvas" width="360" height="160" class="hidden"></canvas>
+    <video id="pipVideo" class="hidden" playsinline muted></video>
+
     <script>
         // --- Core State Variables ---
         const RALLY_BAKE_MS = 300 * 1000; // 5 Minutes Prep Time in ms
-        let syncMode = 'realtime'; // 'realtime' | 'target' | 'queue' | 'custom'
-        let customPath = 'now'; // 'now' | 'timer' | 'time'
-        let customTimerSec = 300;
+        let currentMode = 'realtime'; // 'realtime' | 'target' | 'queue' | 'custom'
+        let displayTimezone = 'UTC'; // 'UTC' | 'LOCAL'
         let audioEnabled = false;
-        let useUTC = true; // Default to UTC to match in-game server clock
         let audioCtx = null;
-        
-        let tRallyStart = null;
-        let tImpact = null;
-        let tEnemyImpact = null;
-        let queuePrepSec = 255;
 
-        let triggers = {};
+        let rallyStartTimestamp = null;
+        let targetImpactTimestamp = null;
 
-        let marchDurations = {
-            rally: 10,
-            solo1: 10,
-            solo2: 10,
-            solo3: 10
-        };
+        // Re-Cap Queue State
+        let queueEnemyRemainingSec = 255; // 4:15 default
 
-        let offsets = {
-            solo1: -2.0,
-            solo2: -1.2,
-            solo3: -0.5
-        };
-
-        // Custom Queue Slots State (Tab 4)
+        // Tab 4: Custom Queue State
+        let customPathMode = 'now'; // 'now' | 'timer' | 'time'
+        let customCountdownSec = 300; // 5m default
         let customSlots = [
-            { id: 'c1', type: 'solo', title: 'Softener Solo 1', prepSec: 0, marchSec: 10, offsetSec: -2.0, color: 'sky' },
-            { id: 'c2', type: 'solo', title: 'Softener Solo 2', prepSec: 0, marchSec: 10, offsetSec: -1.0, color: 'indigo' },
-            { id: 'c3', type: 'rally', title: 'Main Strike Rally', prepSec: 300, marchSec: 10, offsetSec: 0.0, color: 'amber' }
+            { id: 'c1', type: 'solo', name: 'Softener Solo 1', marchSec: 10, offsetSec: -2.0 },
+            { id: 'c2', type: 'solo', name: 'Softener Solo 2', marchSec: 10, offsetSec: -1.0 },
+            { id: 'c3', type: 'rally', name: 'Main Strike Rally', marchSec: 10, offsetSec: 0.0 }
         ];
 
-        // Timezone Toggle Function
+        // Trigger dictionary
+        let triggers = {};
+
+        // --- Initialization ---
+        window.onload = function() {
+            refreshPlannedTargetDefaults();
+            renderCustomSlotsList();
+            calculateSync();
+            requestAnimationFrame(tick);
+        };
+
+        // --- Timezone Display Toggle ---
         function toggleTimezone() {
-            useUTC = !useUTC;
+            displayTimezone = (displayTimezone === 'UTC') ? 'LOCAL' : 'UTC';
             const btn = document.getElementById('tzToggleBtn');
             const text = document.getElementById('tzText');
-            const targetInputLabel = document.getElementById('targetInputLabel');
-            const customTargetInputLabel = document.getElementById('customTargetInputLabel');
-
-            if (useUTC) {
-                text.innerText = "Display: UTC";
-                btn.className = "px-3 py-1.5 rounded-lg bg-sky-950/60 hover:bg-sky-900/70 text-sky-300 text-xs font-bold border border-sky-500/40 transition flex items-center gap-1.5 font-mono";
-                if (targetInputLabel) targetInputLabel.innerText = "Target Impact Time (UTC)";
-                if (customTargetInputLabel) customTargetInputLabel.innerText = "Planned Future Target Time (UTC)";
+            if (displayTimezone === 'UTC') {
+                text.innerText = 'Display: UTC';
+                btn.classList.add('bg-sky-950/60', 'text-sky-300', 'border-sky-500/40');
+                btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
             } else {
-                text.innerText = "Display: Local";
-                btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-600 transition flex items-center gap-1.5 font-mono";
-                if (targetInputLabel) targetInputLabel.innerText = "Target Impact Time (Local)";
-                if (customTargetInputLabel) customTargetInputLabel.innerText = "Planned Future Target Time (Local)";
+                text.innerText = 'Display: Local';
+                btn.classList.remove('bg-sky-950/60', 'text-sky-300', 'border-sky-500/40');
+                btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
             }
-
-            if (syncMode === 'target') populateTargetLandingInputDefault();
-            if (syncMode === 'custom' && customPath === 'time') populateCustomTargetInputDefault();
+            document.getElementById('targetInputLabel').innerText = `Target Impact Time (${displayTimezone})`;
+            document.getElementById('customTargetInputLabel').innerText = `Planned Future Target Time (${displayTimezone})`;
+            refreshPlannedTargetDefaults();
             calculateSync();
         }
 
-        function epochToInputString(epochMs) {
-            const d = new Date(epochMs);
-            if (useUTC) {
-                return d.toISOString().slice(0, 23);
+        function formatDisplayTime(ms, includeMs = true) {
+            if (!ms) return includeMs ? '--:--:--.---' : '--:--:--';
+            const d = new Date(ms);
+            if (displayTimezone === 'UTC') {
+                const hh = String(d.getUTCHours()).padStart(2, '0');
+                const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                const ss = String(d.getUTCSeconds()).padStart(2, '0');
+                if (!includeMs) return `${hh}:${mm}:${ss} UTC`;
+                const mmm = String(d.getUTCMilliseconds()).padStart(3, '0');
+                return `${hh}:${mm}:${ss}.${mmm} UTC`;
             } else {
-                return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 23);
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                const ss = String(d.getSeconds()).padStart(2, '0');
+                if (!includeMs) return `${hh}:${mm}:${ss}`;
+                const mmm = String(d.getMilliseconds()).padStart(3, '0');
+                return `${hh}:${mm}:${ss}.${mmm}`;
             }
         }
 
-        function inputStringToEpoch(val) {
-            if (!val) return null;
-            if (useUTC) {
+        function toDateTimeLocalString(ms) {
+            const d = new Date(ms);
+            if (displayTimezone === 'UTC') {
+                const yyyy = d.getUTCFullYear();
+                const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const hh = String(d.getUTCHours()).padStart(2, '0');
+                const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                const ss = String(d.getUTCSeconds()).padStart(2, '0');
+                const mmm = String(d.getUTCMilliseconds()).padStart(3, '0');
+                return `${yyyy}-${mo}-${dd}T${hh}:${mm}:${ss}.${mmm}`;
+            } else {
+                const yyyy = d.getFullYear();
+                const mo = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                const ss = String(d.getSeconds()).padStart(2, '0');
+                const mmm = String(d.getMilliseconds()).padStart(3, '0');
+                return `${yyyy}-${mo}-${dd}T${hh}:${mm}:${ss}.${mmm}`;
+            }
+        }
+
+        function parseDateTimeInput(val) {
+            if (!val) return NaN;
+            if (displayTimezone === 'UTC') {
                 return new Date(val + 'Z').getTime();
-            } else {
-                return new Date(val).getTime();
             }
+            return new Date(val).getTime();
         }
 
-        // Mode Switching Function
-        function setMode(mode) {
-            syncMode = mode;
-            tRallyStart = null;
-            tImpact = null;
-            tEnemyImpact = null;
-
-            const btnRealtime = document.getElementById('modeRealtimeBtn');
-            const btnTarget = document.getElementById('modeTargetBtn');
-            const btnQueue = document.getElementById('modeQueueBtn');
-            const btnCustom = document.getElementById('modeCustomBtn');
-
-            const ctrlRealtime = document.getElementById('realtimeControls');
-            const ctrlTarget = document.getElementById('targetControls');
-            const ctrlQueue = document.getElementById('queueControls');
-            const ctrlCustom = document.getElementById('customControls');
-
-            const standardPanel = document.getElementById('standardConfigPanel');
-            const customPanel = document.getElementById('customConfigPanel');
-
-            const modeTag = document.getElementById('triggerModeTag');
-
-            btnRealtime.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-slate-400 hover:text-white truncate";
-            btnTarget.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-slate-400 hover:text-white truncate";
-            btnQueue.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-slate-400 hover:text-white truncate";
-            btnCustom.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-slate-400 hover:text-white truncate";
-
-            ctrlRealtime.classList.add('hidden');
-            ctrlTarget.classList.add('hidden');
-            ctrlQueue.classList.add('hidden');
-            ctrlCustom.classList.add('hidden');
-
-            standardPanel.classList.remove('hidden');
-            customPanel.classList.add('hidden');
-
-            if (mode === 'realtime') {
-                btnRealtime.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-white bg-slate-800 shadow truncate";
-                ctrlRealtime.classList.remove('hidden');
-                if (modeTag) modeTag.innerText = "Realtime Mode";
-            } else if (mode === 'target') {
-                btnTarget.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-white bg-slate-800 shadow truncate";
-                ctrlTarget.classList.remove('hidden');
-                if (modeTag) modeTag.innerText = "Planned Target Mode";
-                populateTargetLandingInputDefault();
-            } else if (mode === 'queue') {
-                btnQueue.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-white bg-slate-800 shadow truncate";
-                ctrlQueue.classList.remove('hidden');
-                if (modeTag) modeTag.innerText = "Enemy Re-Cap Engine";
-            } else if (mode === 'custom') {
-                btnCustom.className = "py-2 px-1 rounded-lg text-[10px] font-bold transition text-white bg-slate-800 shadow truncate";
-                ctrlCustom.classList.remove('hidden');
-                standardPanel.classList.add('hidden');
-                customPanel.classList.remove('hidden');
-                if (modeTag) modeTag.innerText = "Build Your Own";
-                renderCustomSlotInputs();
-            }
-
-            calculateSync();
-        }
-
-        // Custom Slot Operations (Tab 4)
-        function setCustomPath(path) {
-            customPath = path;
-            document.getElementById('customPathNowBtn').className = path === 'now' ? "py-1.5 px-1 rounded-lg text-[10px] font-bold text-white bg-purple-900/60 border border-purple-500/40" : "py-1.5 px-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white";
-            document.getElementById('customPathTimerBtn').className = path === 'timer' ? "py-1.5 px-1 rounded-lg text-[10px] font-bold text-white bg-purple-900/60 border border-purple-500/40" : "py-1.5 px-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white";
-            document.getElementById('customPathTimeBtn').className = path === 'time' ? "py-1.5 px-1 rounded-lg text-[10px] font-bold text-white bg-purple-900/60 border border-purple-500/40" : "py-1.5 px-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white";
-
-            document.getElementById('customTimerSubControls').classList.toggle('hidden', path !== 'timer');
-            document.getElementById('customTimeSubControls').classList.toggle('hidden', path !== 'time');
-
-            if (path === 'time') {
-                populateCustomTargetInputDefault();
-            }
-        }
-
-        function adjustCustomTimer(deltaSec) {
-            customTimerSec = Math.max(1, customTimerSec + deltaSec);
-            const mins = Math.floor(customTimerSec / 60);
-            const secs = customTimerSec % 60;
-            document.getElementById('customTimerDisplay').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        }
-
-        function populateCustomTargetInputDefault() {
-            let maxSpanSec = getMaxCustomSpan();
-            const minMs = Date.now() + (maxSpanSec * 1000);
-            const input = document.getElementById('customTargetTimeInput');
-            if (input) input.value = epochToInputString(minMs);
-        }
-
-        function validateCustomTargetInput() {
-            const input = document.getElementById('customTargetTimeInput');
-            if (!input || !input.value) return;
-            const selectedMs = inputStringToEpoch(input.value);
-            const maxSpanSec = getMaxCustomSpan();
-            const minMs = Date.now() + (maxSpanSec * 1000);
-            if (selectedMs < minMs) {
-                populateCustomTargetInputDefault();
-            }
-        }
-
-        function getMaxCustomSpan() {
-            let maxSpanSec = 0;
-            customSlots.forEach(s => {
-                const span = (s.prepSec || 0) + (s.marchSec || 0);
-                if (span > maxSpanSec) maxSpanSec = span;
-            });
-            return maxSpanSec || 10;
-        }
-
-        function renderCustomSlotInputs() {
-            const container = document.getElementById('customSlotsList');
-            if (!container) return;
-
-            container.innerHTML = customSlots.map((slot, index) => `
-                <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-2">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-${slot.color}-400 flex items-center gap-1.5">
-                            <i class="fa-solid ${slot.type === 'rally' ? 'fa-crown' : 'fa-jet-fighter'} text-xs"></i>
-                            <input type="text" value="${slot.title}" onchange="updateCustomSlot('${slot.id}', 'title', this.value)" class="bg-transparent border-b border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-purple-400">
-                        </span>
-                        <div class="flex items-center gap-1">
-                            <button onclick="moveCustomSlot(${index}, -1)" ${index === 0 ? 'disabled class="opacity-30"' : ''} class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-up"></i></button>
-                            <button onclick="moveCustomSlot(${index}, 1)" ${index === customSlots.length - 1 ? 'disabled class="opacity-30"' : ''} class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-down"></i></button>
-                            <button onclick="deleteCustomSlot('${slot.id}')" class="px-1.5 py-0.5 rounded bg-rose-950/60 text-[10px] text-rose-400 hover:text-rose-300 ml-1"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 text-[10px]">
-                        <div>
-                            <label class="text-slate-400 block">Type</label>
-                            <select onchange="updateCustomSlot('${slot.id}', 'type', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-white font-mono">
-                                <option value="solo" ${slot.type === 'solo' ? 'selected' : ''}>Solo</option>
-                                <option value="rally" ${slot.type === 'rally' ? 'selected' : ''}>Rally (5m)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-slate-400 block">March (s)</label>
-                            <input type="number" value="${slot.marchSec}" onchange="updateCustomSlot('${slot.id}', 'marchSec', parseFloat(this.value))" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-white font-mono">
-                        </div>
-                        <div>
-                            <label class="text-slate-400 block">Offset (s)</label>
-                            <input type="number" step="0.1" value="${slot.offsetSec}" onchange="updateCustomSlot('${slot.id}', 'offsetSec', parseFloat(this.value))" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-purple-400 font-mono">
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function addCustomSlot(type) {
-            const newId = 'c' + (Date.now());
-            const isRally = type === 'rally';
-            customSlots.push({
-                id: newId,
-                type: type,
-                title: isRally ? `Custom Rally ${customSlots.length + 1}` : `Custom Solo ${customSlots.length + 1}`,
-                prepSec: isRally ? 300 : 0,
-                marchSec: 10,
-                offsetSec: isRally ? 0.0 : -1.0,
-                color: isRally ? 'amber' : 'sky'
-            });
-            renderCustomSlotInputs();
-            calculateSync();
-        }
-
-        function updateCustomSlot(id, field, value) {
-            const slot = customSlots.find(s => s.id === id);
-            if (!slot) return;
-            if (field === 'type') {
-                slot.type = value;
-                slot.prepSec = value === 'rally' ? 300 : 0;
-                slot.color = value === 'rally' ? 'amber' : 'sky';
-            } else {
-                slot[field] = value;
-            }
-            renderCustomSlotInputs();
-            calculateSync();
-        }
-
-        function deleteCustomSlot(id) {
-            customSlots = customSlots.filter(s => s.id !== id);
-            renderCustomSlotInputs();
-            calculateSync();
-        }
-
-        function moveCustomSlot(index, direction) {
-            const target = index + direction;
-            if (target < 0 || target >= customSlots.length) return;
-            const temp = customSlots[index];
-            customSlots[index] = customSlots[target];
-            customSlots[target] = temp;
-            renderCustomSlotInputs();
-            calculateSync();
-        }
-
-        function triggerCustomQueue() {
-            const maxSpanSec = getMaxCustomSpan();
-            const now = Date.now();
-
-            if (customPath === 'now') {
-                tImpact = now + (maxSpanSec * 1000);
-                tRallyStart = now;
-            } else if (customPath === 'timer') {
-                tImpact = now + (customTimerSec * 1000) + (maxSpanSec * 1000);
-                tRallyStart = now + (customTimerSec * 1000);
-            } else if (customPath === 'time') {
-                const val = document.getElementById('customTargetTimeInput').value;
-                let targetMs = val ? inputStringToEpoch(val) : now + (maxSpanSec * 1000);
-                const minMs = now + (maxSpanSec * 1000);
-                if (targetMs < minMs) targetMs = minMs;
-                tImpact = targetMs;
-                tRallyStart = tImpact - (maxSpanSec * 1000);
-            }
-
-            calculateSync();
-            copySpecificOrder('compact');
-            playBeep(659.25, 'triangle', 0.2);
-        }
-
-        function adjustQueueTimer(deltaSec) {
-            queuePrepSec = Math.max(1, queuePrepSec + deltaSec);
-            const mins = Math.floor(queuePrepSec / 60);
-            const secs = queuePrepSec % 60;
-            document.getElementById('queuePrepDisplay').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            if (tEnemyImpact) {
-                tEnemyImpact = Date.now() + (queuePrepSec * 1000);
-                calculateSync();
-            }
-        }
-
-        function getMinLandingTimestamp() {
-            const marchSec = parseFloat(document.getElementById('rallyMarchSec').value) || 10;
-            return Date.now() + RALLY_BAKE_MS + (marchSec * 1000);
-        }
-
-        function populateTargetLandingInputDefault() {
-            const minMs = getMinLandingTimestamp();
-            const input = document.getElementById('targetLandingInput');
-            if (input) input.value = epochToInputString(minMs);
-            const display = document.getElementById('minLandingDisplay');
-            if (display) display.innerText = formatTimeMs(minMs);
-        }
-
-        function validateTargetLandingInput() {
-            const input = document.getElementById('targetLandingInput');
-            if (!input || !input.value) return;
-            const selectedMs = inputStringToEpoch(input.value);
-            const minMs = getMinLandingTimestamp();
-            if (selectedMs < minMs) {
-                populateTargetLandingInputDefault();
-            }
-        }
-
+        // --- Audio Cues (Web Audio API) ---
         function toggleAudio() {
             audioEnabled = !audioEnabled;
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
             const btn = document.getElementById('soundToggleBtn');
-
             if (audioEnabled) {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
-                icon.className = "fa-solid fa-volume-high text-emerald-400";
-                text.innerText = "Audio Cues ON";
-                btn.className = "px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition flex items-center gap-2";
-                playBeep(880, 'sine', 0.1);
+                icon.className = 'fa-solid fa-volume-high text-emerald-400';
+                text.innerText = 'Audio Cues ON';
+                btn.classList.add('border-emerald-500/40', 'bg-emerald-950/30');
+                playBeep(880, 0.08);
             } else {
-                icon.className = "fa-solid fa-volume-xmark text-slate-400";
-                text.innerText = "Audio Cues OFF";
-                btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center gap-2";
+                icon.className = 'fa-solid fa-volume-xmark text-slate-400';
+                text.innerText = 'Audio Cues OFF';
+                btn.classList.remove('border-emerald-500/40', 'bg-emerald-950/30');
             }
         }
 
-        function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+        function playBeep(freq = 600, duration = 0.08) {
             if (!audioEnabled || !audioCtx) return;
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.value = freq;
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
                 osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.error("Audio synth error:", e);
-            }
+            } catch (e) {}
         }
 
-        // Modular Share & Copy Clipboard System (ALWAYS UTC)
-        function copySpecificOrder(type) {
-            const formatUtc = (ms) => {
-                if (!ms) return 'N/A';
-                const d = new Date(ms);
-                const hh = String(d.getUTCHours()).padStart(2, '0');
-                const mm = String(d.getUTCMinutes()).padStart(2, '0');
-                const ss = String(d.getUTCSeconds()).padStart(2, '0');
-                return `${hh}:${mm}:${ss} UTC`;
+        // --- Mode Switcher ---
+        function setMode(mode) {
+            currentMode = mode;
+            const tabs = {
+                realtime: document.getElementById('modeRealtimeBtn'),
+                target: document.getElementById('modeTargetBtn'),
+                queue: document.getElementById('modeQueueBtn'),
+                custom: document.getElementById('modeCustomBtn')
             };
 
-            let text = "";
-
-            if (type === 'rules') {
-                text = `📌 [ALLIANCE BATTLE RULES]\n`;
-                text += `• All march orders are in UTC server time.\n`;
-                text += `• Launch at your exact assigned UTC second.\n`;
-                text += `• Live Sync: www.asktechdad.com/rally-sync\n`;
-                text += `• Keep chat clear during operations!`;
-            } else if (type === 'compact') {
-                if (!triggers || Object.keys(triggers).length === 0) {
-                    text = "No active timing triggers generated yet.";
-                } else if (syncMode === 'queue') {
-                    text = `🚨 [RE-CAP ORDERS]\n`;
-                    if (tEnemyImpact) text += `• Enemy Lands: ${formatUtc(tEnemyImpact)}\n`;
-                    if (triggers.postSolo1) text += `• Post 1: ${formatUtc(triggers.postSolo1.triggerMs)} | Post 2: ${formatUtc(triggers.postSolo2.triggerMs)} | Post 3: ${formatUtc(triggers.postSolo3.triggerMs)}\n`;
-                    if (triggers.recapRally) text += `• Our Rally Launch: ${formatUtc(triggers.recapRally.triggerMs)}\n`;
-                    if (triggers.preSolo1) text += `• Soft 1: ${formatUtc(triggers.preSolo1.triggerMs)} | Soft 2: ${formatUtc(triggers.preSolo2.triggerMs)} | Soft 3: ${formatUtc(triggers.preSolo3.triggerMs)}`;
-                } else if (syncMode === 'custom') {
-                    text = `🛠️ [CUSTOM QUEUE]\n`;
-                    customSlots.forEach(s => {
-                        const trig = triggers[s.id];
-                        if (trig) text += `• ${s.title}: ${formatUtc(trig.triggerMs)}\n`;
-                    });
-                    if (tImpact) text += `Target Impact: ${formatUtc(tImpact)}`;
+            Object.entries(tabs).forEach(([key, btn]) => {
+                if (!btn) return;
+                if (key === mode) {
+                    btn.className = 'py-2 px-1 rounded-lg text-[10px] font-bold transition text-white bg-slate-800 shadow truncate';
                 } else {
-                    text = `⚔️ [RALLY & SOLO ORDERS]\n`;
-                    if (triggers.rally) text += `• Rally Start: ${formatUtc(triggers.rally.triggerMs)}\n`;
-                    if (triggers.solo1) text += `• Solo 1: ${formatUtc(triggers.solo1.triggerMs)}\n`;
-                    if (triggers.solo2) text += `• Solo 2: ${formatUtc(triggers.solo2.triggerMs)}\n`;
-                    if (triggers.solo3) text += `• Solo 3: ${formatUtc(triggers.solo3.triggerMs)}`;
+                    btn.className = 'py-2 px-1 rounded-lg text-[10px] font-bold transition text-slate-400 hover:text-white truncate';
                 }
-            } else if (type === 'rally') {
-                if (syncMode === 'custom') {
-                    const customRallies = customSlots.filter(s => s.type === 'rally' && triggers[s.id]);
-                    if (customRallies.length > 0) {
-                        text = customRallies.map(r => `👑 ${r.title.toUpperCase()} LAUNCH: ${formatUtc(triggers[r.id].triggerMs)} (5m Prep)`).join('\n');
-                    } else {
-                        text = "No active rally trigger calculated.";
-                    }
-                } else if (syncMode === 'queue' && triggers.recapRally) {
-                    text = `👑 OUR RE-CAP RALLY LAUNCH: ${formatUtc(triggers.recapRally.triggerMs)} (5m Prep)`;
-                } else if (triggers.rally) {
-                    text = `👑 RALLY LEAD LAUNCH: ${formatUtc(triggers.rally.triggerMs)} (5m Prep)`;
-                } else {
-                    text = "No active rally trigger calculated.";
-                }
-            } else if (type === 'solos') {
-                if (syncMode === 'custom') {
-                    const customSolos = customSlots.filter(s => s.type === 'solo' && triggers[s.id]);
-                    if (customSolos.length > 0) {
-                        text = `🚀 [CUSTOM SOLO DISPATCH TIMES]\n` + customSolos.map(s => `• ${s.title}: ${formatUtc(triggers[s.id].triggerMs)}`).join('\n');
-                    } else {
-                        text = "No active solo triggers calculated.";
-                    }
-                } else if (syncMode === 'queue') {
-                    text = `🚀 [RE-CAP SOLOS]\n`;
-                    if (triggers.postSolo1) text += `• Post-Land Solos: 1) ${formatUtc(triggers.postSolo1.triggerMs)}  2) ${formatUtc(triggers.postSolo2.triggerMs)}  3) ${formatUtc(triggers.postSolo3.triggerMs)}\n`;
-                    if (triggers.preSolo1) text += `• Pre-Recap Solos: 1) ${formatUtc(triggers.preSolo1.triggerMs)}  2) ${formatUtc(triggers.preSolo2.triggerMs)}  3) ${formatUtc(triggers.preSolo3.triggerMs)}`;
-                } else {
-                    text = `🚀 [SOLO DISPATCH TIMES]\n`;
-                    if (triggers.solo1) text += `• Solo 1: ${formatUtc(triggers.solo1.triggerMs)}\n`;
-                    if (triggers.solo2) text += `• Solo 2: ${formatUtc(triggers.solo2.triggerMs)}\n`;
-                    if (triggers.solo3) text += `• Solo 3: ${formatUtc(triggers.solo3.triggerMs)}`;
-                }
-            } else if (type === 'full') {
-                const modeTitles = {
-                    realtime: '⚔️ ALLIANCE RALLY & SOLO MARCH COMMAND ORDERS ⚔️',
-                    target: '🎯 PLANNED TARGET LANDING COMMAND ORDERS 🎯',
-                    queue: '🚨 RE-CAP COUNTER-STRIKE COMMAND ORDERS 🚨',
-                    custom: '🛠️ BUILD YOUR OWN ATTACK COMMAND ORDERS 🛠️'
-                };
+            });
 
-                text = `${modeTitles[syncMode] || '⚔️ ALLIANCE BATTLE MARCH ORDERS ⚔️'}\n`;
-                text += `--------------------------------------------------\n`;
-                
-                if (syncMode === 'custom') {
-                    customSlots.forEach(s => {
-                        const trig = triggers[s.id];
-                        if (trig) {
-                            text += `• ${s.title}: Launch at ${formatUtc(trig.triggerMs)} (March: ${s.marchSec}s | Offset: ${s.offsetSec >= 0 ? '+' : ''}${s.offsetSec}s)\n`;
-                        }
-                    });
-                    if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
-                } else if (syncMode === 'queue') {
-                    if (tEnemyImpact) text += `INCOMING ENEMY LANDS: ${formatUtc(tEnemyImpact)}\n\n`;
-                    
-                    text += `[ PHASE 1: POST-LAND BARRAGE SOLOS ]\n`;
-                    if (triggers.postSolo1) text += `• Solo 1 Launch: ${formatUtc(triggers.postSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
-                    if (triggers.postSolo2) text += `• Solo 2 Launch: ${formatUtc(triggers.postSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
-                    if (triggers.postSolo3) text += `• Solo 3 Launch: ${formatUtc(triggers.postSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
+            document.getElementById('realtimeControls').classList.toggle('hidden', mode !== 'realtime');
+            document.getElementById('targetControls').classList.toggle('hidden', mode !== 'target');
+            document.getElementById('queueControls').classList.toggle('hidden', mode !== 'queue');
+            document.getElementById('customControls').classList.toggle('hidden', mode !== 'custom');
 
-                    text += `\n[ PHASE 2: OUR RE-CAP RALLY ]\n`;
-                    if (triggers.recapRally) text += `• Rally Lead Launch: ${formatUtc(triggers.recapRally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
+            document.getElementById('standardConfigPanel').classList.toggle('hidden', mode === 'custom');
+            document.getElementById('customConfigPanel').classList.toggle('hidden', mode !== 'custom');
 
-                    text += `\n[ PHASE 3: PRE-RECAP SOFTENING SOLOS ]\n`;
-                    if (triggers.preSolo1) text += `• Softener 1 Launch: ${formatUtc(triggers.preSolo1.triggerMs)} (March: ${marchDurations.solo1}s)\n`;
-                    if (triggers.preSolo2) text += `• Softener 2 Launch: ${formatUtc(triggers.preSolo2.triggerMs)} (March: ${marchDurations.solo2}s)\n`;
-                    if (triggers.preSolo3) text += `• Softener 3 Launch: ${formatUtc(triggers.preSolo3.triggerMs)} (March: ${marchDurations.solo3}s)\n`;
-
-                    if (tImpact) text += `\nESTIMATED RE-CAP RALLY IMPACT: ${formatUtc(tImpact)}\n`;
-                } else {
-                    text += `RALLY LEAD:\n`;
-                    if (triggers.rally) text += `• Rally Start: ${formatUtc(triggers.rally.triggerMs)} (Prep: 5m | March: ${marchDurations.rally}s)\n`;
-                    
-                    text += `\nSOLO MARCHES:\n`;
-                    if (triggers.solo1) text += `• Solo 1 Launch: ${formatUtc(triggers.solo1.triggerMs)} (March: ${marchDurations.solo1}s | Offset: ${offsets.solo1.toFixed(1)}s)\n`;
-                    if (triggers.solo2) text += `• Solo 2 Launch: ${formatUtc(triggers.solo2.triggerMs)} (March: ${marchDurations.solo2}s | Offset: ${offsets.solo2.toFixed(1)}s)\n`;
-                    if (triggers.solo3) text += `• Solo 3 Launch: ${formatUtc(triggers.solo3.triggerMs)} (March: ${marchDurations.solo3}s | Offset: ${offsets.solo3.toFixed(1)}s)\n`;
-
-                    if (tImpact) text += `\nESTIMATED TARGET IMPACT: ${formatUtc(tImpact)}\n`;
-                }
-
-                text += `--------------------------------------------------\n`;
-                text += `To watch live triggers visit: www.asktechdad.com/rally-sync\n`;
-                text += `Please keep messaging to a minimum in the channel during battle.`;
-            }
-
-            if (!text) return;
-
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.opacity = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                document.execCommand('copy');
-                showCopyToast(type);
-            } catch (err) {
-                console.warn("Copy to clipboard failed", err);
-            }
-            document.body.removeChild(textArea);
-        }
-
-        function showCopyToast(type) {
-            let toast = document.getElementById('copyToast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'copyToast';
-                toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-emerald-400 transition-all transform translate-y-10 opacity-0';
-                document.body.appendChild(toast);
-            }
-            
-            const labels = {
-                rules: "Room Rules & Etiquette",
-                compact: "Compact In-Game Chat Format (UTC)",
-                rally: "Rally Lead Launch Order (UTC)",
-                solos: "Solo Dispatch Timestamps (UTC)",
-                full: "Full Expanded Command Block (UTC)"
+            const modeNames = {
+                realtime: 'Realtime Mode',
+                target: 'Planned Target Mode',
+                queue: 'Enemy Re-Cap Engine',
+                custom: 'Build Your Own Queue'
             };
+            document.getElementById('triggerModeTag').innerText = modeNames[mode] || 'Realtime Mode';
 
-            toast.innerHTML = `<i class="fa-solid fa-clipboard-check text-sm"></i> ${labels[type] || 'Text'} Copied to Clipboard!`;
-
-            setTimeout(() => {
-                toast.classList.remove('translate-y-10', 'opacity-0');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('translate-y-10', 'opacity-0');
-            }, 3000);
-        }
-
-        function lockQueueSync() {
-            tEnemyImpact = Date.now() + (queuePrepSec * 1000);
+            if (mode === 'target' || mode === 'custom') {
+                refreshPlannedTargetDefaults();
+            }
             calculateSync();
-            copySpecificOrder('compact');
-            playBeep(523.25, 'sine', 0.15);
         }
 
+        // --- Tab 1: Realtime Rally Launch ---
         function triggerRallyNow() {
-            tRallyStart = Date.now();
+            rallyStartTimestamp = Date.now();
             calculateSync();
-            copySpecificOrder('compact');
-            playBeep(659.25, 'triangle', 0.2);
+            playBeep(880, 0.12);
+        }
+
+        // --- Tab 2: Planned Target Landing ---
+        function getMinLandingMs() {
+            const rallyMarch = parseFloat(document.getElementById('rallyMarchSec').value) || 10;
+            return Date.now() + RALLY_BAKE_MS + (rallyMarch * 1000);
+        }
+
+        function refreshPlannedTargetDefaults() {
+            const minMs = getMinLandingMs() + 15000;
+            const input = document.getElementById('targetLandingInput');
+            if (input && !input.value) {
+                input.value = toDateTimeLocalString(minMs);
+            }
+            const customMinMs = Date.now() + getMaxCustomSpanMs() + 15000;
+            const customInput = document.getElementById('customTargetTimeInput');
+            if (customInput && !customInput.value) {
+                customInput.value = toDateTimeLocalString(customMinMs);
+            }
+            validateTargetLandingInput();
+        }
+
+        function validateTargetLandingInput() {
+            const minMs = getMinLandingMs();
+            document.getElementById('minLandingDisplay').innerText = formatDisplayTime(minMs, true);
+            const input = document.getElementById('targetLandingInput');
+            const parsed = parseDateTimeInput(input.value);
+            if (!isNaN(parsed) && parsed < minMs) {
+                input.classList.add('border-rose-500');
+            } else {
+                input.classList.remove('border-rose-500');
+            }
         }
 
         function setPlannedTarget() {
-            const val = document.getElementById('targetLandingInput').value;
-            if (!val) return;
-            let targetDateMs = inputStringToEpoch(val);
-            const minMs = getMinLandingTimestamp();
-
-            if (targetDateMs < minMs) {
-                targetDateMs = minMs;
-                populateTargetLandingInputDefault();
+            const input = document.getElementById('targetLandingInput');
+            const parsed = parseDateTimeInput(input.value);
+            const minMs = getMinLandingMs();
+            if (isNaN(parsed) || parsed < minMs) {
+                const safeMs = minMs + 5000;
+                input.value = toDateTimeLocalString(safeMs);
+                targetImpactTimestamp = safeMs;
+            } else {
+                targetImpactTimestamp = parsed;
             }
-
-            tImpact = targetDateMs;
-            const rallyMarchSec = parseFloat(document.getElementById('rallyMarchSec').value) || 0;
-            tRallyStart = tImpact - RALLY_BAKE_MS - (rallyMarchSec * 1000);
-            
+            const rallyMarch = parseFloat(document.getElementById('rallyMarchSec').value) || 10;
+            rallyStartTimestamp = targetImpactTimestamp - (RALLY_BAKE_MS + rallyMarch * 1000);
             calculateSync();
-            copySpecificOrder('compact');
-            playBeep(523.25, 'sine', 0.15);
+            playBeep(740, 0.12);
         }
 
-        function calculateSync() {
-            marchDurations.rally = parseFloat(document.getElementById('rallyMarchSec').value) || 0;
-            marchDurations.solo1 = parseFloat(document.getElementById('solo1MarchSec').value) || 0;
-            marchDurations.solo2 = parseFloat(document.getElementById('solo2MarchSec').value) || 0;
-            marchDurations.solo3 = parseFloat(document.getElementById('solo3MarchSec').value) || 0;
+        // --- Tab 3: Enemy Re-Cap Engine ---
+        function adjustQueueTimer(deltaSec) {
+            queueEnemyRemainingSec = Math.max(5, queueEnemyRemainingSec + deltaSec);
+            const mins = Math.floor(queueEnemyRemainingSec / 60);
+            const secs = queueEnemyRemainingSec % 60;
+            document.getElementById('queuePrepDisplay').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
 
-            offsets.solo1 = parseFloat(document.getElementById('solo1OffsetSec').value) || 0;
-            offsets.solo2 = parseFloat(document.getElementById('solo2OffsetSec').value) || 0;
-            offsets.solo3 = parseFloat(document.getElementById('solo3OffsetSec').value) || 0;
+        function lockQueueSync() {
+            const now = Date.now();
+            // Enemy rally impact time
+            const enemyImpactMs = now + (queueEnemyRemainingSec * 1000);
+            // Our rally launches 10s after enemy impact to re-cap
+            const ourRallyStartMs = enemyImpactMs + 10000;
+            rallyStartTimestamp = ourRallyStartMs;
+            calculateSync(enemyImpactMs);
+            playBeep(920, 0.15);
+        }
 
-            const totalRallySpanSec = 300 + marchDurations.rally;
-            document.getElementById('mathRallyMarch').innerText = `${marchDurations.rally.toFixed(1)}s`;
-            document.getElementById('mathTotalRallySpan').innerText = `${totalRallySpanSec.toFixed(1)}s`;
-            document.getElementById('mathAnchorOffset').innerText = `+${totalRallySpanSec.toFixed(1)}s after Rally Start`;
-
-            if (syncMode === 'custom') {
-                document.getElementById('targetLabel').innerText = "Target Impact Anchor";
-                document.getElementById('secondaryLabel').innerText = "Farthest Rally Start";
-                document.getElementById('targetLineBadge').innerText = "TARGET IMPACT";
-
-                if (tImpact) {
-                    triggers = {};
-                    customSlots.forEach(s => {
-                        const totalMarchSec = (s.prepSec || 0) + (s.marchSec || 0);
-                        const triggerMs = tImpact + ((s.offsetSec || 0) * 1000) - (totalMarchSec * 1000);
-                        triggers[s.id] = {
-                            id: `card_${s.id}`,
-                            title: s.title,
-                            icon: s.type === 'rally' ? 'fa-crown' : 'fa-jet-fighter',
-                            color: s.color || 'sky',
-                            triggerMs: triggerMs,
-                            badge: `Offset: ${s.offsetSec >= 0 ? '+' : ''}${s.offsetSec}s`,
-                            action: `DISPATCH ${s.title.toUpperCase()}`
-                        };
-                    });
-                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tImpact);
-                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tRallyStart);
+        // --- Tab 4: Build Your Own Custom Queue ---
+        function setCustomPath(path) {
+            customPathMode = path;
+            const btns = {
+                now: document.getElementById('customPathNowBtn'),
+                timer: document.getElementById('customPathTimerBtn'),
+                time: document.getElementById('customPathTimeBtn')
+            };
+            Object.entries(btns).forEach(([k, b]) => {
+                if (k === path) {
+                    b.className = 'py-1.5 px-1 rounded-lg text-[10px] font-bold text-white bg-purple-900/60 border border-purple-500/40';
                 } else {
-                    triggers = {};
-                    document.getElementById('targetImpactDisplay').innerText = "GENERATE QUEUE";
-                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
+                    b.className = 'py-1.5 px-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white';
                 }
+            });
+            document.getElementById('customTimerSubControls').classList.toggle('hidden', path !== 'timer');
+            document.getElementById('customTimeSubControls').classList.toggle('hidden', path !== 'time');
+        }
 
-            } else if (syncMode === 'target') {
-                document.getElementById('targetLabel').innerText = "Calculated Target Impact";
-                document.getElementById('secondaryLabel').innerText = "Rally Start Timestamp";
-                document.getElementById('targetLineBadge').innerText = "RALLY IMPACT";
+        function adjustCustomTimer(delta) {
+            customCountdownSec = Math.max(5, customCountdownSec + delta);
+            const m = Math.floor(customCountdownSec / 60);
+            const s = customCountdownSec % 60;
+            document.getElementById('customTimerDisplay').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
 
-                const minMs = getMinLandingTimestamp();
-                document.getElementById('minLandingDisplay').innerText = formatTimeMs(minMs);
+        function getMaxCustomSpanMs() {
+            let maxSpan = 0;
+            customSlots.forEach(slot => {
+                const prep = slot.type === 'rally' ? RALLY_BAKE_MS : 0;
+                const march = (parseFloat(slot.marchSec) || 10) * 1000;
+                const offset = (parseFloat(slot.offsetSec) || 0) * 1000;
+                const totalNeeded = prep + march - offset;
+                if (totalNeeded > maxSpan) maxSpan = totalNeeded;
+            });
+            return maxSpan;
+        }
 
-                if (tImpact) {
-                    tRallyStart = tImpact - RALLY_BAKE_MS - (marchDurations.rally * 1000);
-                    triggers = {
-                        rally: { id: 'cardRally', title: 'RALLY HOST START', icon: 'fa-crown', color: 'amber', triggerMs: tRallyStart, badge: '5m Prep', action: 'LAUNCH RALLY' },
-                        solo1: { id: 'cardSolo1', title: 'SOLO MARCH 1', icon: 'fa-jet-fighter', color: 'sky', triggerMs: tImpact + (offsets.solo1 * 1000) - (marchDurations.solo1 * 1000), badge: `Offset: ${offsets.solo1 >= 0 ? '+' : ''}${offsets.solo1.toFixed(1)}s`, action: 'DISPATCH SOLO 1' },
-                        solo2: { id: 'cardSolo2', title: 'SOLO MARCH 2', icon: 'fa-jet-fighter', color: 'indigo', triggerMs: tImpact + (offsets.solo2 * 1000) - (marchDurations.solo2 * 1000), badge: `Offset: ${offsets.solo2 >= 0 ? '+' : ''}${offsets.solo2.toFixed(1)}s`, action: 'DISPATCH SOLO 2' },
-                        solo3: { id: 'cardSolo3', title: 'SOLO MARCH 3', icon: 'fa-jet-fighter', color: 'purple', triggerMs: tImpact + (offsets.solo3 * 1000) - (marchDurations.solo3 * 1000), badge: `Offset: ${offsets.solo3 >= 0 ? '+' : ''}${offsets.solo3.toFixed(1)}s`, action: 'DISPATCH SOLO 3' }
-                    };
-                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tImpact);
-                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tRallyStart);
-                } else {
-                    triggers = {};
-                    document.getElementById('targetImpactDisplay').innerText = "SET TARGET TIME";
-                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
-                }
-
-            } else if (syncMode === 'queue') {
-                document.getElementById('targetLabel').innerText = "Incoming Enemy Impact Anchor";
-                document.getElementById('secondaryLabel').innerText = "Our Re-Cap Rally Impact";
-                document.getElementById('targetLineBadge').innerText = "ENEMY LANDS (FLIP)";
-
-                if (tEnemyImpact) {
-                    tImpact = tEnemyImpact + 10000;
-                    tRallyStart = tImpact - RALLY_BAKE_MS - (marchDurations.rally * 1000);
-
-                    const post1Land = tEnemyImpact + 500;
-                    const post2Land = tEnemyImpact + 1200;
-                    const post3Land = tEnemyImpact + 2000;
-
-                    const pre1Land = tImpact - 2000;
-                    const pre2Land = tImpact - 1200;
-                    const pre3Land = tImpact - 500;
-
-                    triggers = {
-                        enemy: { id: 'cardEnemy', title: 'INCOMING ENEMY RALLY LANDS', icon: 'fa-skull', color: 'rose', triggerMs: tEnemyImpact, badge: 'Target Castle Flip', action: 'ENEMY IMPACT', isAnchor: true },
-                        postSolo1: { id: 'cardPostSolo1', title: 'POST-LAND BARRAGE SOLO 1', icon: 'fa-bolt', color: 'rose', triggerMs: post1Land - (marchDurations.solo1 * 1000), badge: 'Hits +0.5s After Enemy', action: 'DISPATCH BARRAGE 1' },
-                        postSolo2: { id: 'cardPostSolo2', title: 'POST-LAND BARRAGE SOLO 2', icon: 'fa-bolt', color: 'pink', triggerMs: post2Land - (marchDurations.solo2 * 1000), badge: 'Hits +1.2s After Enemy', action: 'DISPATCH BARRAGE 2' },
-                        postSolo3: { id: 'cardPostSolo3', title: 'POST-LAND BARRAGE SOLO 3', icon: 'fa-bolt', color: 'fuchsia', triggerMs: post3Land - (marchDurations.solo3 * 1000), badge: 'Hits +2.0s After Enemy', action: 'DISPATCH BARRAGE 3' },
-                        recapRally: { id: 'cardRecapRally', title: 'OUR RE-CAP RALLY LAUNCH', icon: 'fa-crown', color: 'amber', triggerMs: tRallyStart, badge: '5m Prep Re-Cap', action: 'LAUNCH RE-CAP RALLY' },
-                        preSolo1: { id: 'cardPreSolo1', title: 'PRE-RECAP SOFTENER SOLO 1', icon: 'fa-shield-halved', color: 'sky', triggerMs: pre1Land - (marchDurations.solo1 * 1000), badge: 'Hits -2.0s Before Rally', action: 'DISPATCH SOFTENER 1' },
-                        preSolo2: { id: 'cardPreSolo2', title: 'PRE-RECAP SOFTENER SOLO 2', icon: 'fa-shield-halved', color: 'indigo', triggerMs: pre2Land - (marchDurations.solo2 * 1000), badge: 'Hits -1.2s Before Rally', action: 'DISPATCH SOFTENER 2' },
-                        preSolo3: { id: 'cardPreSolo3', title: 'PRE-RECAP SOFTENER SOLO 3', icon: 'fa-shield-halved', color: 'purple', triggerMs: pre3Land - (marchDurations.solo3 * 1000), badge: 'Hits -0.5s Before Rally', action: 'DISPATCH SOFTENER 3' }
-                    };
-
-                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tEnemyImpact);
-                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tImpact);
-                } else {
-                    triggers = {};
-                    document.getElementById('targetImpactDisplay').innerText = "LOCK ENEMY TIMER";
-                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
-                }
-
+        function validateCustomTargetInput() {
+            const minMs = Date.now() + getMaxCustomSpanMs();
+            const input = document.getElementById('customTargetTimeInput');
+            const parsed = parseDateTimeInput(input.value);
+            if (!isNaN(parsed) && parsed < minMs) {
+                input.classList.add('border-rose-500');
             } else {
-                // Realtime Mode
-                document.getElementById('targetLabel').innerText = "Calculated Target Impact";
-                document.getElementById('secondaryLabel').innerText = "Rally Start Timestamp";
-                document.getElementById('targetLineBadge').innerText = "RALLY IMPACT";
-
-                if (tRallyStart) {
-                    tImpact = tRallyStart + RALLY_BAKE_MS + (marchDurations.rally * 1000);
-
-                    triggers = {
-                        rally: { id: 'cardRally', title: 'RALLY HOST START', icon: 'fa-crown', color: 'amber', triggerMs: tRallyStart, badge: '5m Prep', action: 'LAUNCH RALLY' },
-                        solo1: { id: 'cardSolo1', title: 'SOLO MARCH 1', icon: 'fa-jet-fighter', color: 'sky', triggerMs: tImpact + (offsets.solo1 * 1000) - (marchDurations.solo1 * 1000), badge: `Offset: ${offsets.solo1 >= 0 ? '+' : ''}${offsets.solo1.toFixed(1)}s`, action: 'DISPATCH SOLO 1' },
-                        solo2: { id: 'cardSolo2', title: 'SOLO MARCH 2', icon: 'fa-jet-fighter', color: 'indigo', triggerMs: tImpact + (offsets.solo2 * 1000) - (marchDurations.solo2 * 1000), badge: `Offset: ${offsets.solo2 >= 0 ? '+' : ''}${offsets.solo2.toFixed(1)}s`, action: 'DISPATCH SOLO 2' },
-                        solo3: { id: 'cardSolo3', title: 'SOLO MARCH 3', icon: 'fa-jet-fighter', color: 'purple', triggerMs: tImpact + (offsets.solo3 * 1000) - (marchDurations.solo3 * 1000), badge: `Offset: ${offsets.solo3 >= 0 ? '+' : ''}${offsets.solo3.toFixed(1)}s`, action: 'DISPATCH SOLO 3' }
-                    };
-
-                    document.getElementById('targetImpactDisplay').innerText = formatTimeMs(tImpact);
-                    document.getElementById('rallyStartDisplay').innerText = formatTimeMs(tRallyStart);
-                } else {
-                    triggers = {};
-                    document.getElementById('targetImpactDisplay').innerText = "AWAITING RALLY LAUNCH";
-                    document.getElementById('rallyStartDisplay').innerText = "--:--:--";
-                }
+                input.classList.remove('border-rose-500');
             }
         }
 
-        function formatTimeMs(epochMs) {
-            if (!epochMs) return '--:--:--.---';
-            const d = new Date(epochMs);
-            if (useUTC) {
-                const hh = String(d.getUTCHours()).padStart(2, '0');
-                const mm = String(d.getUTCMinutes()).padStart(2, '0');
-                const ss = String(d.getUTCSeconds()).padStart(2, '0');
-                const ms = String(d.getUTCMilliseconds()).padStart(3, '0');
-                return `${hh}:${mm}:${ss}.${ms} UTC`;
+        function addCustomSlot(type) {
+            const idx = customSlots.length + 1;
+            const id = 'c' + Date.now() + Math.floor(Math.random() * 100);
+            if (type === 'rally') {
+                customSlots.push({ id, type: 'rally', name: `Rally Lead ${idx}`, marchSec: 10, offsetSec: 0.0 });
             } else {
-                const hh = String(d.getHours()).padStart(2, '0');
-                const mm = String(d.getMinutes()).padStart(2, '0');
-                const ss = String(d.getSeconds()).padStart(2, '0');
-                const ms = String(d.getMilliseconds()).padStart(3, '0');
-                return `${hh}:${mm}:${ss}.${ms} Local`;
+                customSlots.push({ id, type: 'solo', name: `Solo March ${idx}`, marchSec: 10, offsetSec: -1.0 });
             }
+            renderCustomSlotsList();
+            calculateSync();
         }
 
-        // --- Main Engine Loop ---
+        function removeCustomSlot(id) {
+            if (customSlots.length <= 1) return;
+            customSlots = customSlots.filter(s => s.id !== id);
+            renderCustomSlotsList();
+            calculateSync();
+        }
+
+        function moveCustomSlot(index, dir) {
+            const targetIdx = index + dir;
+            if (targetIdx < 0 || targetIdx >= customSlots.length) return;
+            const temp = customSlots[index];
+            customSlots[index] = customSlots[targetIdx];
+            customSlots[targetIdx] = temp;
+            renderCustomSlotsList();
+            calculateSync();
+        }
+
+        function updateCustomSlotField(id, field, val) {
+            const slot = customSlots.find(s => s.id === id);
+            if (!slot) return;
+            if (field === 'name') slot.name = val;
+            else slot[field] = parseFloat(val) || 0;
+            calculateSync();
+        }
+
+        function renderCustomSlotsList() {
+            const container = document.getElementById('customSlotsList');
+            if (!container) return;
+            container.innerHTML = customSlots.map((slot, idx) => {
+                const isRally = slot.type === 'rally';
+                const badgeColor = isRally ? 'text-amber-400' : 'text-sky-400';
+                const iconClass = isRally ? 'fa-crown' : 'fa-jet-fighter';
+                return `
+                    <div class="p-3 bg-slate-900/70 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 flex-1">
+                                <i class="fa-solid ${iconClass} text-xs ${badgeColor}"></i>
+                                <input type="text" value="${slot.name}" onchange="updateCustomSlotField('${slot.id}', 'name', this.value)" class="bg-slate-950 border border-slate-800 rounded px-2 py-0.5 text-xs font-bold text-white w-full">
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button onclick="moveCustomSlot(${idx}, -1)" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
+                                <button onclick="moveCustomSlot(${idx}, 1)" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
+                                <button onclick="removeCustomSlot('${slot.id}')" class="p-1 rounded bg-rose-950/60 hover:bg-rose-900 text-[10px] text-rose-400" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400">March Sec ${isRally ? '(+300s Prep)' : ''}</label>
+                                <input type="number" value="${slot.marchSec}" min="1" max="1800" onchange="updateCustomSlotField('${slot.id}', 'marchSec', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400">Impact Offset (Sec)</label>
+                                <input type="number" value="${slot.offsetSec}" step="0.1" onchange="updateCustomSlotField('${slot.id}', 'offsetSec', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-purple-300 font-mono">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function triggerCustomQueue() {
+            const now = Date.now();
+            const maxSpanMs = getMaxCustomSpanMs();
+            if (customPathMode === 'now') {
+                targetImpactTimestamp = now + maxSpanMs;
+            } else if (customPathMode === 'timer') {
+                targetImpactTimestamp = now + (customCountdownSec * 1000) + maxSpanMs;
+            } else if (customPathMode === 'time') {
+                const input = document.getElementById('customTargetTimeInput');
+                const parsed = parseDateTimeInput(input.value);
+                if (isNaN(parsed) || parsed < now + maxSpanMs) {
+                    const safeMs = now + maxSpanMs + 5000;
+                    input.value = toDateTimeLocalString(safeMs);
+                    targetImpactTimestamp = safeMs;
+                } else {
+                    targetImpactTimestamp = parsed;
+                }
+            }
+            calculateSync();
+            playBeep(880, 0.14);
+        }
+
+        // --- Core Synchronization Calculation ---
+        function calculateSync(enemyImpactOverrideMs = null) {
+            triggers = {};
+
+            if (currentMode === 'custom') {
+                if (!targetImpactTimestamp) {
+                    document.getElementById('targetImpactDisplay').innerText = '--:--:--.---';
+                    document.getElementById('rallyStartDisplay').innerText = '--:--:--';
+                    return;
+                }
+
+                let earliestStartMs = targetImpactTimestamp;
+                let maxRallyMarch = 10;
+
+                customSlots.forEach(slot => {
+                    const isRally = slot.type === 'rally';
+                    const prepMs = isRally ? RALLY_BAKE_MS : 0;
+                    const marchSec = parseFloat(slot.marchSec) || 10;
+                    const offsetSec = parseFloat(slot.offsetSec) || 0;
+                    if (isRally && marchSec > maxRallyMarch) maxRallyMarch = marchSec;
+
+                    const impactMs = targetImpactTimestamp + (offsetSec * 1000);
+                    const triggerMs = impactMs - prepMs - (marchSec * 1000);
+                    if (triggerMs < earliestStartMs) earliestStartMs = triggerMs;
+
+                    triggers[slot.id] = {
+                        id: slot.id,
+                        title: slot.name,
+                        role: isRally ? 'Rally Captain (5m Prep)' : `Solo Offset (${offsetSec >= 0 ? '+' : ''}${offsetSec}s)`,
+                        triggerMs,
+                        impactMs,
+                        marchMs: marchSec * 1000,
+                        prepMs,
+                        color: isRally ? 'amber' : 'sky'
+                    };
+                });
+
+                rallyStartTimestamp = earliestStartMs;
+                document.getElementById('targetLabel').innerText = 'Custom Anchor Impact';
+                document.getElementById('targetImpactDisplay').innerText = formatDisplayTime(targetImpactTimestamp, true);
+                document.getElementById('secondaryLabel').innerText = 'First Dispatch Trigger';
+                document.getElementById('rallyStartDisplay').innerText = formatDisplayTime(earliestStartMs, false);
+
+                document.getElementById('mathRallyMarch').innerText = `${maxRallyMarch.toFixed(1)}s`;
+                document.getElementById('mathTotalRallySpan').innerText = `${(300 + maxRallyMarch).toFixed(1)}s`;
+                document.getElementById('mathAnchorOffset').innerText = `Custom Multi-Slot Queue`;
+                return;
+            }
+
+            // Standard Tabs (1, 2, 3)
+            const rallyMarch = parseFloat(document.getElementById('rallyMarchSec').value) || 10;
+            const s1March = parseFloat(document.getElementById('solo1MarchSec').value) || 10;
+            const s1Off = parseFloat(document.getElementById('solo1OffsetSec').value) || 0;
+            const s2March = parseFloat(document.getElementById('solo2MarchSec').value) || 10;
+            const s2Off = parseFloat(document.getElementById('solo2OffsetSec').value) || 0;
+            const s3March = parseFloat(document.getElementById('solo3MarchSec').value) || 10;
+            const s3Off = parseFloat(document.getElementById('solo3OffsetSec').value) || 0;
+
+            document.getElementById('mathRallyMarch').innerText = `${rallyMarch.toFixed(1)}s`;
+            document.getElementById('mathTotalRallySpan').innerText = `${(300 + rallyMarch).toFixed(1)}s`;
+            document.getElementById('mathAnchorOffset').innerText = `+${(300 + rallyMarch).toFixed(1)}s after Rally Start`;
+
+            if (!rallyStartTimestamp) {
+                document.getElementById('targetImpactDisplay').innerText = '--:--:--.---';
+                document.getElementById('rallyStartDisplay').innerText = '--:--:--';
+                return;
+            }
+
+            targetImpactTimestamp = rallyStartTimestamp + RALLY_BAKE_MS + (rallyMarch * 1000);
+
+            document.getElementById('targetLabel').innerText = currentMode === 'queue' ? 'Our Re-Cap Rally Impact' : 'Calculated Target Impact';
+            document.getElementById('targetImpactDisplay').innerText = formatDisplayTime(targetImpactTimestamp, true);
+            document.getElementById('secondaryLabel').innerText = 'Rally Start Timestamp';
+            document.getElementById('rallyStartDisplay').innerText = formatDisplayTime(rallyStartTimestamp, false);
+
+            triggers.rally = {
+                id: 'rally',
+                title: 'Rally Lead (Captain)',
+                role: '5m Prep + March Anchor',
+                triggerMs: rallyStartTimestamp,
+                impactMs: targetImpactTimestamp,
+                marchMs: rallyMarch * 1000,
+                prepMs: RALLY_BAKE_MS,
+                color: 'amber'
+            };
+
+            const s1Impact = targetImpactTimestamp + (s1Off * 1000);
+            triggers.solo1 = {
+                id: 'solo1',
+                title: 'Solo 1 (First Debuff)',
+                role: `Impact Offset: ${s1Off >= 0 ? '+' : ''}${s1Off}s`,
+                triggerMs: s1Impact - (s1March * 1000),
+                impactMs: s1Impact,
+                marchMs: s1March * 1000,
+                prepMs: 0,
+                color: 'sky'
+            };
+
+            const s2Impact = targetImpactTimestamp + (s2Off * 1000);
+            triggers.solo2 = {
+                id: 'solo2',
+                title: 'Solo 2 (Second Debuff)',
+                role: `Impact Offset: ${s2Off >= 0 ? '+' : ''}${s2Off}s`,
+                triggerMs: s2Impact - (s2March * 1000),
+                impactMs: s2Impact,
+                marchMs: s2March * 1000,
+                prepMs: 0,
+                color: 'indigo'
+            };
+
+            const s3Impact = targetImpactTimestamp + (s3Off * 1000);
+            triggers.solo3 = {
+                id: 'solo3',
+                title: 'Solo 3 (Final Softener)',
+                role: `Impact Offset: ${s3Off >= 0 ? '+' : ''}${s3Off}s`,
+                triggerMs: s3Impact - (s3March * 1000),
+                impactMs: s3Impact,
+                marchMs: s3March * 1000,
+                prepMs: 0,
+                color: 'purple'
+            };
+        }
+
+        // --- UTC Formatting Helper for Clipboard Orders ---
+        function formatUtcClock(ms) {
+            const d = new Date(ms);
+            const hh = String(d.getUTCHours()).padStart(2, '0');
+            const mm = String(d.getUTCMinutes()).padStart(2, '0');
+            const ss = String(d.getUTCSeconds()).padStart(2, '0');
+            return `${hh}:${mm}:${ss} UTC`;
+        }
+
+        // --- Alliance Share Center (1-Tap UTC Copy) ---
+        function copySpecificOrder(type) {
+            let text = '';
+            const sorted = Object.values(triggers).sort((a, b) => a.triggerMs - b.triggerMs);
+
+            if (type === 'rules') {
+                text = `⚔️ [BATTLE ROOM RULES]\n• Watch top-screen UTC clock & launch on your exact second.\n• Hover over Deploy 15s early.\n• Live Sync Tool: www.asktechdad.com/rally-sync`;
+            } else if (type === 'compact') {
+                if (sorted.length === 0) {
+                    showCopyToast('noData');
+                    return;
+                }
+                const header = currentMode === 'queue' ? '🛡️ [RE-CAP ORDERS]' : (currentMode === 'custom' ? '🛠️ [CUSTOM QUEUE]' : '⚔️ [RALLY SYNC ORDERS]');
+                const lines = sorted.map(t => `• ${t.title}: ${formatUtcClock(t.triggerMs)}`);
+                text = `${header}\n${lines.join('\n')}\n💥 Impact: ${formatUtcClock(targetImpactTimestamp)}`;
+            } else if (type === 'rally') {
+                const rallyTrigs = sorted.filter(t => t.prepMs > 0);
+                if (rallyTrigs.length === 0) {
+                    showCopyToast('noData');
+                    return;
+                }
+                text = `👑 [RALLY CAPTAIN LAUNCH]\n` + rallyTrigs.map(r => `• ${r.title}: Start Rally at ${formatUtcClock(r.triggerMs)}`).join('\n');
+            } else if (type === 'solos') {
+                const soloTrigs = sorted.filter(t => t.prepMs === 0);
+                if (soloTrigs.length === 0) {
+                    showCopyToast('noData');
+                    return;
+                }
+                text = `🚀 [SOLO MARCH ORDERS]\n` + soloTrigs.map(s => `• ${s.title}: March at ${formatUtcClock(s.triggerMs)}`).join('\n');
+            } else if (type === 'full') {
+                if (sorted.length === 0) {
+                    showCopyToast('noData');
+                    return;
+                }
+                const lines = sorted.map(t => `• ${t.title} (${t.role}): Launch at ${formatUtcClock(t.triggerMs)}`);
+                text = `⚔️ [SYNCHRONIZED STRIKE ORDERS]\nWatch top-screen in-game UTC clock:\n${lines.join('\n')}\n💥 Target Impact: ${formatUtcClock(targetImpactTimestamp)}\n🔗 Live Track: www.asktechdad.com/rally-sync`;
+            }
+
+            copyTextToClipboard(text);
+        }
+
+        function copyTextToClipboard(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showCopyToast('copied');
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            document.body.removeChild(ta);
+        }
+
+        function showCopyToast(status) {
+            const existing = document.getElementById('copyToast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'copyToast';
+            let msg = 'Copied UTC Orders to Clipboard!';
+            let bg = 'bg-emerald-600 border-emerald-400';
+
+            if (status === 'noData') {
+                msg = 'Generate triggers first before copying!';
+                bg = 'bg-amber-600 border-amber-400';
+            } else if (status === 'pipUnsupported') {
+                msg = 'Picture-in-Picture not supported on this browser.';
+                bg = 'bg-rose-600 border-rose-400';
+            } else if (status === 'pipError') {
+                msg = 'Could not pop out timer. Try tapping again.';
+                bg = 'bg-rose-600 border-rose-400';
+            }
+
+            toast.className = `fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-xl border ${bg} transition-opacity`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, 2500);
+        }
+
+        // --- Picture-in-Picture (PiP) Floating Timer Engine ---
         let lastBeepedState = {};
+        let activePipTriggerKey = null;
 
+        async function launchPipTimer(triggerKey) {
+            const trig = Object.values(triggers).find(v => v.id === triggerKey);
+            if (!trig) return;
+
+            activePipTriggerKey = triggerKey;
+            const canvas = document.getElementById('pipCanvas');
+            const video = document.getElementById('pipVideo');
+
+            try {
+                renderPipFrame(Date.now());
+
+                if (!video.srcObject) {
+                    const stream = canvas.captureStream(30);
+                    video.srcObject = stream;
+                }
+
+                await video.play();
+
+                if (document.pictureInPictureElement !== video) {
+                    if (video.requestPictureInPicture) {
+                        await video.requestPictureInPicture();
+                    } else if (video.webkitSetPresentationMode) {
+                        video.webkitSetPresentationMode('picture-in-picture');
+                    } else {
+                        showCopyToast('pipUnsupported');
+                    }
+                }
+            } catch (err) {
+                console.warn("PiP launch failed:", err);
+                showCopyToast('pipError');
+            }
+        }
+
+        function renderPipFrame(now) {
+            if (!activePipTriggerKey) return;
+            const canvas = document.getElementById('pipCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const trig = Object.values(triggers).find(t => t.id === activePipTriggerKey);
+
+            // Background
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!trig) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('AWAITING TRIGGER...', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const diff = trig.triggerMs - now;
+            let accentColor = '#38bdf8';
+            let statusLabel = 'STANDBY FOR DISPATCH';
+            let timerText = '00:00.0';
+
+            if (diff > 0) {
+                const totalSec = diff / 1000;
+                const mins = Math.floor(totalSec / 60);
+                const secs = (totalSec % 60).toFixed(1);
+                timerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(4, '0')}`;
+
+                if (diff <= 3000) {
+                    accentColor = '#f97316';
+                    statusLabel = `LAUNCH IN ${(diff / 1000).toFixed(1)}s!`;
+                    ctx.fillStyle = 'rgba(249, 115, 22, 0.25)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                } else if (diff <= 15000) {
+                    accentColor = '#fbbf24';
+                    statusLabel = 'HOVER OVER DEPLOY!';
+                    ctx.fillStyle = 'rgba(251, 191, 36, 0.15)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            } else if (diff > -4000) {
+                accentColor = '#34d399';
+                statusLabel = '⚡ LAUNCH NOW! ⚡';
+                timerText = '00:00.0';
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.32)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                accentColor = '#64748b';
+                statusLabel = 'MARCH DISPATCHED';
+                timerText = '00:00.0';
+            }
+
+            // Border frame
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+
+            // Title
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 17px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(trig.title.toUpperCase(), canvas.width / 2, 36);
+
+            // Main Countdown
+            ctx.fillStyle = accentColor;
+            ctx.font = 'bold 58px monospace';
+            ctx.fillText(timerText, canvas.width / 2, 98);
+
+            // Lead-Up / GO Status Banner
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText(statusLabel, canvas.width / 2, 138);
+        }
+
+        // --- Main Animation Loop ---
         function tick() {
             const now = Date.now();
-
             renderSortedTriggerCards(now);
             renderLiveTracks(now);
-
+            renderPipFrame(now);
             requestAnimationFrame(tick);
         }
 
         function renderSortedTriggerCards(now) {
             const container = document.getElementById('cardsList');
-            if (!container) return;
+            const list = Object.values(triggers).sort((a, b) => a.triggerMs - b.triggerMs);
 
-            const sortedTriggers = Object.values(triggers).sort((a, b) => a.triggerMs - b.triggerMs);
-
-            if (sortedTriggers.length === 0) {
+            if (list.length === 0) {
                 container.innerHTML = `
-                    <div class="glass-panel rounded-2xl p-6 text-center border border-slate-800/80">
-                        <i class="fa-solid fa-hourglass-start text-2xl text-slate-600 mb-2"></i>
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Awaiting Execution Trigger</div>
-                        <div class="text-[11px] text-slate-500 mt-1">Select your mode controls on the left panel to lock timing and generate triggers.</div>
+                    <div class="p-6 text-center rounded-2xl border border-dashed border-slate-800 text-slate-500 text-xs font-mono">
+                        No active triggers. Select a mode on the left and initiate launch to start countdowns.
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = sortedTriggers.map(t => {
+            container.innerHTML = list.map(t => {
                 const diff = t.triggerMs - now;
-                let cardStyle = "glass-panel rounded-2xl p-4 border border-slate-800";
-                let statusText = "WAITING FOR DISPATCH";
-                let statusStyle = "text-[10px] font-semibold text-slate-500 uppercase tracking-wider";
-                let countDisplay = "00:00.0";
+                let countDisplay = '00:00.0';
+                let statusText = 'STANDBY';
+                let statusStyle = 'text-[10px] font-bold text-slate-400 uppercase';
+                let cardBorder = 'border-slate-800 bg-slate-900/60';
 
                 if (diff > 0) {
                     const totalSec = diff / 1000;
@@ -1189,68 +1190,55 @@
                     countDisplay = `${String(mins).padStart(2, '0')}:${String(secs).padStart(4, '0')}`;
 
                     if (diff <= 3000) {
-                        cardStyle = "glass-panel rounded-2xl p-4 border-2 border-fire-500 bg-fire-500/15 glow-orange animate-pulse";
-                        statusText = `🚨 LAUNCH NOW IN ${(diff/1000).toFixed(1)}s!`;
-                        statusStyle = "text-[10px] font-extrabold text-fire-400 uppercase tracking-wider";
-
-                        const secondKey = Math.ceil(diff / 1000);
-                        if (!lastBeepedState[t.id + secondKey]) {
-                            playBeep(secondKey === 1 ? 1046.50 : 783.99, 'sine', 0.08);
-                            lastBeepedState[t.id + secondKey] = true;
+                        statusText = `GET READY (${(diff / 1000).toFixed(1)}s)`;
+                        statusStyle = 'text-[10px] font-black text-fire-500 uppercase animate-pulse';
+                        cardBorder = 'border-fire-500/70 bg-fire-950/20';
+                        const secInt = Math.ceil(diff / 1000);
+                        if (lastBeepedState[t.id] !== secInt) {
+                            lastBeepedState[t.id] = secInt;
+                            playBeep(660, 0.06);
                         }
                     } else if (diff <= 15000) {
-                        cardStyle = "glass-panel rounded-2xl p-4 border border-amber-500/60 bg-amber-950/30";
-                        statusText = `<i class="fa-solid fa-hand-pointer animate-bounce mr-1"></i> PREP IN-GAME: TARGET READY`;
-                        statusStyle = "text-[10px] font-bold text-amber-300 uppercase tracking-wider";
-
-                        const secondKey = Math.ceil(diff / 1000);
-                        if (secondKey === 15 && !lastBeepedState[t.id + 'prep15']) {
-                            playBeep(440.00, 'triangle', 0.12);
-                            lastBeepedState[t.id + 'prep15'] = true;
-                        }
+                        statusText = 'PREPARE TO LAUNCH';
+                        statusStyle = 'text-[10px] font-bold text-amber-400 uppercase';
+                        cardBorder = 'border-amber-500/40 bg-amber-950/10';
                     }
-                } else if (diff > -4000) {
-                    countDisplay = "00:00.0";
-                    cardStyle = "glass-panel rounded-2xl p-4 border-2 border-emerald-500 bg-emerald-500/20 glow-blue";
-                    statusText = `⚡ EXECUTED! (${t.action})`;
-                    statusStyle = "text-[10px] font-black text-emerald-400 uppercase tracking-wider animate-bounce";
+                } else if (diff > -3500) {
+                    countDisplay = '00:00.0';
+                    statusText = '⚡ LAUNCH NOW! ⚡';
+                    statusStyle = 'text-xs font-black text-emerald-400 uppercase animate-bounce';
+                    cardBorder = 'border-emerald-500 bg-emerald-950/30 shadow-lg';
+                    if (lastBeepedState[t.id] !== 'GO') {
+                        lastBeepedState[t.id] = 'GO';
+                        playBeep(1046, 0.18);
+                    }
                 } else {
-                    countDisplay = "00:00.0";
-                    cardStyle = "glass-panel rounded-2xl p-4 border border-slate-800 opacity-60";
-                    statusText = t.isAnchor ? "TARGET IMPACT PASSED" : "MARCH IN FLIGHT";
-                    statusStyle = "text-[10px] font-semibold text-slate-500 uppercase tracking-wider";
+                    countDisplay = '00:00.0';
+                    statusText = 'DISPATCHED';
+                    statusStyle = 'text-[10px] font-bold text-slate-500 uppercase';
                 }
 
-                const colorClasses = {
-                    amber: "bg-amber-500/10 border-amber-500/30 text-amber-400",
-                    rose: "bg-rose-500/10 border-rose-500/30 text-rose-400",
-                    pink: "bg-pink-500/10 border-pink-500/30 text-pink-400",
-                    fuchsia: "bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-400",
-                    sky: "bg-sky-500/10 border-sky-500/30 text-sky-400",
-                    indigo: "bg-indigo-500/10 border-indigo-500/30 text-indigo-400",
-                    purple: "bg-purple-500/10 border-purple-500/30 text-purple-400"
-                };
+                const iconClass = t.prepMs > 0 ? 'fa-crown text-amber-400' : 'fa-jet-fighter text-sky-400';
 
                 return `
-                    <div id="${t.id}" class="${cardStyle} transition-all duration-300">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-sm ${colorClasses[t.color] || colorClasses.amber}">
-                                    <i class="fa-solid ${t.icon}"></i>
+                    <div class="p-4 rounded-2xl border ${cardBorder} transition-all">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid ${iconClass} text-xs"></i>
+                                    <span class="font-bold text-sm text-white">${t.title}</span>
                                 </div>
-                                <div>
-                                    <div class="font-bold text-sm text-white flex items-center gap-2">
-                                        ${t.title}
-                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">${t.badge}</span>
-                                    </div>
-                                    <div class="text-xs text-slate-400 font-mono">
-                                        Trigger: <span class="text-slate-200">${formatTimeMs(t.triggerMs)}</span>
-                                    </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">${t.role}</div>
+                                <div class="text-[11px] font-mono text-sky-300 mt-1">
+                                    Go at: <span class="font-bold">${formatDisplayTime(t.triggerMs, false)}</span>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-2xl font-black font-mono text-slate-300">${countDisplay}</div>
+                                <div class="text-2xl font-black font-mono text-slate-200">${countDisplay}</div>
                                 <div class="${statusStyle}">${statusText}</div>
+                                <button onclick="launchPipTimer('${t.id}')" class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800/90 hover:bg-sky-900/70 text-sky-300 border border-sky-500/30 text-[10px] font-mono font-bold transition">
+                                    <i class="fa-solid fa-up-right-from-square text-[9px]"></i> Pop-Out Timer
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1260,179 +1248,49 @@
 
         function renderLiveTracks(now) {
             const container = document.getElementById('timelineTracks');
-            if (!container) return;
+            const list = Object.values(triggers).sort((a, b) => a.triggerMs - b.triggerMs);
 
-            let tracks = [];
-
-            if (syncMode === 'custom') {
-                if (!tImpact) {
-                    container.innerHTML = `<div class="text-xs text-slate-500 font-mono text-center py-4">Generate Custom Queue to visualize arrival tracks.</div>`;
-                    return;
-                }
-                tracks = customSlots.map(s => {
-                    const totalMarchSec = (s.prepSec || 0) + (s.marchSec || 0);
-                    const triggerMs = tImpact + ((s.offsetSec || 0) * 1000) - (totalMarchSec * 1000);
-                    return {
-                        id: s.id,
-                        label: s.title,
-                        trigger: triggerMs,
-                        durationSec: s.marchSec,
-                        isRally: s.type === 'rally',
-                        color: s.type === 'rally' ? 'bg-fire-500' : 'bg-sky-400',
-                        icon: s.type === 'rally' ? 'fa-crown' : 'fa-jet-fighter'
-                    };
-                });
-            } else if (syncMode === 'queue') {
-                if (!tEnemyImpact) {
-                    container.innerHTML = `<div class="text-xs text-slate-500 font-mono text-center py-4">Lock Enemy Rally Timer to visualize arrival tracks.</div>`;
-                    return;
-                }
-                const post1Trigger = tEnemyImpact + 500 - (marchDurations.solo1 * 1000);
-                const post2Trigger = tEnemyImpact + 1200 - (marchDurations.solo2 * 1000);
-                const post3Trigger = tEnemyImpact + 2000 - (marchDurations.solo3 * 1000);
-
-                const pre1Trigger = tImpact - 2000 - (marchDurations.solo1 * 1000);
-                const pre2Trigger = tImpact - 1200 - (marchDurations.solo2 * 1000);
-                const pre3Trigger = tImpact - 500 - (marchDurations.solo3 * 1000);
-
-                tracks = [
-                    { id: 'enemyImpact', label: 'Incoming Enemy Whale Landing', trigger: tEnemyImpact, durationSec: 0, isAnchor: true, color: 'bg-rose-500', icon: 'fa-skull' },
-                    { id: 'postSolo1', label: 'Post-Land Solo 1 (Barrage)', trigger: post1Trigger, durationSec: marchDurations.solo1, color: 'bg-rose-400', icon: 'fa-bolt' },
-                    { id: 'postSolo2', label: 'Post-Land Solo 2 (Barrage)', trigger: post2Trigger, durationSec: marchDurations.solo2, color: 'bg-pink-400', icon: 'fa-bolt' },
-                    { id: 'postSolo3', label: 'Post-Land Solo 3 (Barrage)', trigger: post3Trigger, durationSec: marchDurations.solo3, color: 'bg-fuchsia-400', icon: 'fa-bolt' },
-                    { id: 'recapRally', label: 'Our Alliance Re-Cap Rally', trigger: tRallyStart, durationSec: marchDurations.rally, isRally: true, color: 'bg-fire-500', icon: 'fa-crown' },
-                    { id: 'preSolo1', label: 'Pre-Rally Softener 1', trigger: pre1Trigger, durationSec: marchDurations.solo1, color: 'bg-sky-400', icon: 'fa-shield-halved' },
-                    { id: 'preSolo2', label: 'Pre-Rally Softener 2', trigger: pre2Trigger, durationSec: marchDurations.solo2, color: 'bg-indigo-400', icon: 'fa-shield-halved' },
-                    { id: 'preSolo3', label: 'Pre-Rally Softener 3', trigger: pre3Trigger, durationSec: marchDurations.solo3, color: 'bg-purple-400', icon: 'fa-shield-halved' }
-                ];
-            } else {
-                if (!tImpact) {
-                    container.innerHTML = `<div class="text-xs text-slate-500 font-mono text-center py-4">Trigger Rally Start or set Target Time to visualize arrival tracks.</div>`;
-                    return;
-                }
-                tracks = [
-                    { id: 'solo1', label: 'Solo 1', trigger: triggers.solo1 ? triggers.solo1.triggerMs : 0, durationSec: marchDurations.solo1, offsetSec: offsets.solo1, color: 'bg-sky-400', icon: 'fa-jet-fighter' },
-                    { id: 'solo2', label: 'Solo 2', trigger: triggers.solo2 ? triggers.solo2.triggerMs : 0, durationSec: marchDurations.solo2, offsetSec: offsets.solo2, color: 'bg-indigo-400', icon: 'fa-jet-fighter' },
-                    { id: 'solo3', label: 'Solo 3', trigger: triggers.solo3 ? triggers.solo3.triggerMs : 0, durationSec: marchDurations.solo3, offsetSec: offsets.solo3, color: 'bg-purple-400', icon: 'fa-jet-fighter' },
-                    { id: 'rally', label: 'Rally Lead', trigger: tRallyStart, durationSec: marchDurations.rally, offsetSec: 0, color: 'bg-fire-500', icon: 'fa-crown', isRally: true }
-                ];
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-[11px] text-slate-500 font-mono text-center py-4">Awaiting launch sequence...</div>`;
+                return;
             }
 
-            const totalSequenceDurationMs = RALLY_BAKE_MS + (marchDurations.rally * 1000);
+            container.innerHTML = list.map(t => {
+                const totalSpan = t.impactMs - t.triggerMs;
+                const elapsed = now - t.triggerMs;
+                let pct = 0;
+                let barColor = t.prepMs > 0 ? 'bg-amber-500' : 'bg-sky-500';
+                let stateNote = 'Waiting';
 
-            container.innerHTML = tracks.map(m => {
-                if (m.isAnchor) {
-                    const diff = m.trigger - now;
-                    const statusText = diff > 0 ? `Enemy Landing in ${(diff/1000).toFixed(1)}s` : "Castle Control Flipped!";
-                    return `
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[11px] font-mono">
-                                <span class="font-bold text-rose-400 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-skull text-[10px]"></i> ${m.label}
-                                </span>
-                                <span class="text-rose-300 font-bold">${statusText}</span>
-                            </div>
-                            <div class="h-2 bg-rose-950 rounded-full overflow-hidden border border-rose-500/40">
-                                <div class="h-full bg-rose-500 animate-pulse" style="width: ${diff <= 0 ? 100 : 0}%;"></div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                if (m.isRally) {
-                    const tPrepEnd = (m.trigger || tRallyStart) + RALLY_BAKE_MS;
-                    const landTime = tPrepEnd + (m.durationSec * 1000);
-                    let statusText = "";
-                    let marchProgressPct = 0;
-
-                    if (now < (m.trigger || tRallyStart)) {
-                        statusText = "Rally Not Started";
-                    } else if (now >= (m.trigger || tRallyStart) && now < tPrepEnd) {
-                        const prepSecRemaining = ((tPrepEnd - now) / 1000).toFixed(1);
-                        statusText = `Phase 1: Gathering Troops in City (${prepSecRemaining}s prep remaining)`;
-                    } else if (now >= tPrepEnd && now <= landTime) {
-                        const marchElapsedMs = now - tPrepEnd;
-                        const marchTotalMs = m.durationSec * 1000;
-                        marchProgressPct = Math.min(100, Math.max(0, (marchElapsedMs / marchTotalMs) * 100));
-                        const marchSecRemaining = ((landTime - now) / 1000).toFixed(1);
-                        statusText = `Phase 2: Rally Marching to Target! (${marchSecRemaining}s to hit - ${marchProgressPct.toFixed(1)}%)`;
+                if (elapsed >= 0 && totalSpan > 0) {
+                    pct = Math.min(100, (elapsed / totalSpan) * 100);
+                    if (t.prepMs > 0 && elapsed < t.prepMs) {
+                        barColor = 'bg-amber-500';
+                        stateNote = 'Rally Gathering (5m)';
+                    } else if (pct < 100) {
+                        barColor = 'bg-emerald-500';
+                        stateNote = 'Marching to Target';
                     } else {
-                        marchProgressPct = 100;
-                        statusText = "RALLY LANDED & IMPACTED TARGET";
+                        barColor = 'bg-fire-500';
+                        stateNote = 'IMPACTED!';
                     }
-
-                    return `
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[11px] font-mono">
-                                <span class="font-bold text-amber-400 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-crown text-[10px]"></i> ${m.label} (5m Prep + ${m.durationSec}s March)
-                                </span>
-                                <span class="text-amber-300 font-medium">${statusText}</span>
-                            </div>
-                            <div class="h-3 bg-slate-900 rounded-full overflow-hidden border border-amber-500/30 relative flex">
-                                <div class="h-full bg-amber-500/20 border-r border-amber-500/50 flex items-center justify-center text-[8px] font-bold text-amber-300 uppercase tracking-tighter" style="width: ${(RALLY_BAKE_MS / totalSequenceDurationMs) * 100}%;">
-                                    Prep (5m)
-                                </div>
-                                <div class="h-full bg-slate-900 relative flex-1">
-                                    <div class="h-full bg-fire-500 transition-all duration-75 relative rounded-r-full" style="width: ${marchProgressPct}%;">
-                                        ${marchProgressPct > 0 && marchProgressPct < 100 ? `
-                                            <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md animate-ping"></div>
-                                        ` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // Standard Solo March rendering
-                const marchStart = m.trigger;
-                const marchLand = marchStart + (m.durationSec * 1000);
-                
-                let progressPct = 0;
-                let statusText = "Base / Idle";
-
-                if (now < marchStart) {
-                    progressPct = 0;
-                    const timeToDispatchSec = ((marchStart - now) / 1000).toFixed(1);
-                    statusText = `Dispatches in ${timeToDispatchSec}s`;
-                } else if (now >= marchStart && now <= marchLand) {
-                    const totalDurationMs = m.durationSec * 1000;
-                    const elapsedMs = now - marchStart;
-                    progressPct = Math.min(100, Math.max(0, (elapsedMs / totalDurationMs) * 100));
-                    
-                    const remainingSec = ((marchLand - now) / 1000).toFixed(1);
-                    statusText = `In Flight: ${remainingSec}s to hit (${progressPct.toFixed(1)}%)`;
-                } else {
-                    progressPct = 100;
-                    statusText = `LANDED ON TARGET`;
+                } else if (elapsed < 0) {
+                    stateNote = `Starts in ${Math.ceil(Math.abs(elapsed) / 1000)}s`;
                 }
 
                 return `
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-[11px] font-mono">
-                            <span class="font-bold text-white flex items-center gap-1.5">
-                                <i class="fa-solid ${m.icon} text-[10px]"></i> ${m.label} (${m.durationSec}s march)
-                            </span>
-                            <span class="text-slate-400 font-medium">${statusText}</span>
+                    <div>
+                        <div class="flex justify-between text-[10px] font-mono mb-1">
+                            <span class="text-slate-300 font-bold">${t.title}</span>
+                            <span class="text-slate-400">${stateNote}</span>
                         </div>
-                        <div class="h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800 relative">
-                            <div class="h-full ${m.color} transition-all duration-75 relative rounded-full" style="width: ${progressPct}%;">
-                                ${progressPct > 0 && progressPct < 100 ? `
-                                    <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-md animate-ping"></div>
-                                ` : ''}
-                            </div>
+                        <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800 pr-12">
+                            <div class="h-full ${barColor} transition-all duration-75 rounded-full" style="width: ${pct}%"></div>
                         </div>
                     </div>
                 `;
             }).join('');
         }
-
-        // Initialize on Load
-        window.onload = function() {
-            calculateSync();
-            requestAnimationFrame(tick);
-        };
     </script>
 </body>
 </html>
