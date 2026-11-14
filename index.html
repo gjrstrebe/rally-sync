@@ -58,7 +58,7 @@
 
     <!-- Top Header -->
     <header class="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-50 backdrop-blur-md">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-fire-600 to-amber-500 flex items-center justify-center text-white shadow-lg glow-orange">
                     <i class="fa-solid fa-crosshairs text-xl"></i>
@@ -69,10 +69,14 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-sky-400 border border-sky-500/20">
+                <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-sky-400 border border-sky-500/20">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5"></span>
-                    Rally Prep Time: 5m (300s)
+                    Rally Prep: 5m (300s)
                 </span>
+                <button id="tzToggleBtn" onclick="toggleTimezone()" class="px-3 py-1.5 rounded-lg bg-sky-950/60 hover:bg-sky-900/70 text-sky-300 text-xs font-bold border border-sky-500/40 transition flex items-center gap-1.5 font-mono">
+                    <i class="fa-solid fa-globe text-sky-400"></i>
+                    <span id="tzText">Display: UTC</span>
+                </button>
                 <button id="soundToggleBtn" onclick="toggleAudio()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center gap-2">
                     <i id="soundIcon" class="fa-solid fa-volume-xmark text-slate-400"></i>
                     <span id="soundText">Audio Cues OFF</span>
@@ -118,8 +122,8 @@
                 <!-- Target Mode Controls -->
                 <div id="targetControls" class="space-y-4 hidden">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">
-                            Target Impact Time (Must be ≥ NOW + 5m Prep + Lead March)
+                        <label id="targetInputLabel" class="block text-xs font-semibold text-slate-300 mb-1">
+                            Target Impact Time (UTC)
                         </label>
                         <div class="flex gap-2 items-center">
                             <input type="datetime-local" id="targetLandingInput" step="0.001" onchange="validateTargetLandingInput()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-sky-500">
@@ -183,7 +187,7 @@
 
                     <!-- Target Time Sub-Path Input -->
                     <div id="customTimeSubControls" class="p-3 bg-indigo-950/30 rounded-xl border border-indigo-900/40 space-y-2 hidden">
-                        <label class="block text-xs font-semibold text-slate-300">Planned Future Target Time</label>
+                        <label id="customTargetInputLabel" class="block text-xs font-semibold text-slate-300">Planned Future Target Time (UTC)</label>
                         <input type="datetime-local" id="customTargetTimeInput" step="0.001" onchange="validateCustomTargetInput()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono">
                     </div>
 
@@ -310,7 +314,7 @@
             <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <div id="targetLabel" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Calculated Target Impact</div>
-                    <div id="targetImpactDisplay" class="text-xl font-extrabold font-mono text-emerald-400">--:--:--.--</div>
+                    <div id="targetImpactDisplay" class="text-xl font-extrabold font-mono text-emerald-400">--:--:--.---</div>
                 </div>
                 <div class="text-right">
                     <div id="secondaryLabel" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Rally Start Timestamp</div>
@@ -332,13 +336,13 @@
                 </div>
             </div>
 
-            <!-- NEW: Alliance Share & Clipboard Center -->
+            <!-- Alliance Share & Clipboard Center -->
             <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
                 <div class="flex items-center justify-between">
                     <h2 class="text-xs font-bold tracking-wider text-slate-400 uppercase flex items-center gap-2">
-                        <i class="fa-solid fa-share-nodes text-sky-400"></i> Alliance Share Center (1-Tap Copy Buttons)
+                        <i class="fa-solid fa-share-nodes text-sky-400"></i> Alliance Share Center (1-Tap UTC Orders)
                     </h2>
-                    <span class="text-[10px] text-slate-500 font-mono">Clean Chat Formats</span>
+                    <span class="text-[10px] text-slate-500 font-mono">Always Copies in UTC</span>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -346,7 +350,7 @@
                         <div class="text-[11px] font-bold text-amber-400 group-hover:text-amber-300 flex items-center gap-1.5">
                             <i class="fa-solid fa-book-bookmark"></i> Room Rules
                         </div>
-                        <div class="text-[9px] text-slate-500 truncate mt-0.5">March baseline & etiquette</div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Battle etiquette & sync link</div>
                     </button>
 
                     <button onclick="copySpecificOrder('compact')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 text-left transition group">
@@ -360,21 +364,21 @@
                         <div class="text-[11px] font-bold text-amber-400 group-hover:text-amber-300 flex items-center gap-1.5">
                             <i class="fa-solid fa-crown"></i> Rally Lead Only
                         </div>
-                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Rally launch timestamp</div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Rally launch timestamp (UTC)</div>
                     </button>
 
                     <button onclick="copySpecificOrder('solos')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left transition group">
                         <div class="text-[11px] font-bold text-sky-400 group-hover:text-sky-300 flex items-center gap-1.5">
                             <i class="fa-solid fa-jet-fighter"></i> Solos Only
                         </div>
-                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Solo launch timestamps</div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Solo launch timestamps (UTC)</div>
                     </button>
 
                     <button onclick="copySpecificOrder('full')" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left transition group col-span-2 sm:col-span-1">
                         <div class="text-[11px] font-bold text-purple-400 group-hover:text-purple-300 flex items-center gap-1.5">
                             <i class="fa-solid fa-file-lines"></i> Full Expanded Orders
                         </div>
-                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Complete detailed block</div>
+                        <div class="text-[9px] text-slate-500 truncate mt-0.5">Complete detailed block (UTC)</div>
                     </button>
                 </div>
             </div>
@@ -424,6 +428,8 @@
         let customPath = 'now'; // 'now' | 'timer' | 'time'
         let customTimerSec = 300;
         let audioEnabled = false;
+        let useUTC = true; // Default to UTC to match in-game server clock
+        let audioCtx = null;
         
         let tRallyStart = null;
         let tImpact = null;
@@ -451,6 +457,49 @@
             { id: 'c2', type: 'solo', title: 'Softener Solo 2', prepSec: 0, marchSec: 10, offsetSec: -1.0, color: 'indigo' },
             { id: 'c3', type: 'rally', title: 'Main Strike Rally', prepSec: 300, marchSec: 10, offsetSec: 0.0, color: 'amber' }
         ];
+
+        // Timezone Toggle Function
+        function toggleTimezone() {
+            useUTC = !useUTC;
+            const btn = document.getElementById('tzToggleBtn');
+            const text = document.getElementById('tzText');
+            const targetInputLabel = document.getElementById('targetInputLabel');
+            const customTargetInputLabel = document.getElementById('customTargetInputLabel');
+
+            if (useUTC) {
+                text.innerText = "Display: UTC";
+                btn.className = "px-3 py-1.5 rounded-lg bg-sky-950/60 hover:bg-sky-900/70 text-sky-300 text-xs font-bold border border-sky-500/40 transition flex items-center gap-1.5 font-mono";
+                if (targetInputLabel) targetInputLabel.innerText = "Target Impact Time (UTC)";
+                if (customTargetInputLabel) customTargetInputLabel.innerText = "Planned Future Target Time (UTC)";
+            } else {
+                text.innerText = "Display: Local";
+                btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-600 transition flex items-center gap-1.5 font-mono";
+                if (targetInputLabel) targetInputLabel.innerText = "Target Impact Time (Local)";
+                if (customTargetInputLabel) customTargetInputLabel.innerText = "Planned Future Target Time (Local)";
+            }
+
+            if (syncMode === 'target') populateTargetLandingInputDefault();
+            if (syncMode === 'custom' && customPath === 'time') populateCustomTargetInputDefault();
+            calculateSync();
+        }
+
+        function epochToInputString(epochMs) {
+            const d = new Date(epochMs);
+            if (useUTC) {
+                return d.toISOString().slice(0, 23);
+            } else {
+                return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 23);
+            }
+        }
+
+        function inputStringToEpoch(val) {
+            if (!val) return null;
+            if (useUTC) {
+                return new Date(val + 'Z').getTime();
+            } else {
+                return new Date(val).getTime();
+            }
+        }
 
         // Mode Switching Function
         function setMode(mode) {
@@ -537,16 +586,14 @@
         function populateCustomTargetInputDefault() {
             let maxSpanSec = getMaxCustomSpan();
             const minMs = Date.now() + (maxSpanSec * 1000);
-            const d = new Date(minMs);
-            const iso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 23);
             const input = document.getElementById('customTargetTimeInput');
-            if (input) input.value = iso;
+            if (input) input.value = epochToInputString(minMs);
         }
 
         function validateCustomTargetInput() {
             const input = document.getElementById('customTargetTimeInput');
             if (!input || !input.value) return;
-            const selectedMs = new Date(input.value).getTime();
+            const selectedMs = inputStringToEpoch(input.value);
             const maxSpanSec = getMaxCustomSpan();
             const minMs = Date.now() + (maxSpanSec * 1000);
             if (selectedMs < minMs) {
@@ -648,7 +695,6 @@
         }
 
         function triggerCustomQueue() {
-            // Anchor target on farthest rally / march duration so longest fires first
             const maxSpanSec = getMaxCustomSpan();
             const now = Date.now();
 
@@ -660,7 +706,7 @@
                 tRallyStart = now + (customTimerSec * 1000);
             } else if (customPath === 'time') {
                 const val = document.getElementById('customTargetTimeInput').value;
-                let targetMs = val ? new Date(val).getTime() : now + (maxSpanSec * 1000);
+                let targetMs = val ? inputStringToEpoch(val) : now + (maxSpanSec * 1000);
                 const minMs = now + (maxSpanSec * 1000);
                 if (targetMs < minMs) targetMs = minMs;
                 tImpact = targetMs;
@@ -690,10 +736,8 @@
 
         function populateTargetLandingInputDefault() {
             const minMs = getMinLandingTimestamp();
-            const d = new Date(minMs);
-            const iso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 23);
             const input = document.getElementById('targetLandingInput');
-            if (input) input.value = iso;
+            if (input) input.value = epochToInputString(minMs);
             const display = document.getElementById('minLandingDisplay');
             if (display) display.innerText = formatTimeMs(minMs);
         }
@@ -701,7 +745,7 @@
         function validateTargetLandingInput() {
             const input = document.getElementById('targetLandingInput');
             if (!input || !input.value) return;
-            const selectedMs = new Date(input.value).getTime();
+            const selectedMs = inputStringToEpoch(input.value);
             const minMs = getMinLandingTimestamp();
             if (selectedMs < minMs) {
                 populateTargetLandingInputDefault();
@@ -746,7 +790,7 @@
             }
         }
 
-        // Modular Share & Copy Clipboard System
+        // Modular Share & Copy Clipboard System (ALWAYS UTC)
         function copySpecificOrder(type) {
             const formatUtc = (ms) => {
                 if (!ms) return 'N/A';
@@ -761,8 +805,8 @@
 
             if (type === 'rules') {
                 text = `📌 [ALLIANCE BATTLE RULES]\n`;
-                text += `• Standard 10s March Time assumed.\n`;
-                text += `• Adjust dispatch time if your march differs.\n`;
+                text += `• All march orders are in UTC server time.\n`;
+                text += `• Launch at your exact assigned UTC second.\n`;
                 text += `• Live Sync: www.asktechdad.com/rally-sync\n`;
                 text += `• Keep chat clear during operations!`;
             } else if (type === 'compact') {
@@ -789,7 +833,14 @@
                     if (triggers.solo3) text += `• Solo 3: ${formatUtc(triggers.solo3.triggerMs)}`;
                 }
             } else if (type === 'rally') {
-                if (syncMode === 'queue' && triggers.recapRally) {
+                if (syncMode === 'custom') {
+                    const customRallies = customSlots.filter(s => s.type === 'rally' && triggers[s.id]);
+                    if (customRallies.length > 0) {
+                        text = customRallies.map(r => `👑 ${r.title.toUpperCase()} LAUNCH: ${formatUtc(triggers[r.id].triggerMs)} (5m Prep)`).join('\n');
+                    } else {
+                        text = "No active rally trigger calculated.";
+                    }
+                } else if (syncMode === 'queue' && triggers.recapRally) {
                     text = `👑 OUR RE-CAP RALLY LAUNCH: ${formatUtc(triggers.recapRally.triggerMs)} (5m Prep)`;
                 } else if (triggers.rally) {
                     text = `👑 RALLY LEAD LAUNCH: ${formatUtc(triggers.rally.triggerMs)} (5m Prep)`;
@@ -797,7 +848,14 @@
                     text = "No active rally trigger calculated.";
                 }
             } else if (type === 'solos') {
-                if (syncMode === 'queue') {
+                if (syncMode === 'custom') {
+                    const customSolos = customSlots.filter(s => s.type === 'solo' && triggers[s.id]);
+                    if (customSolos.length > 0) {
+                        text = `🚀 [CUSTOM SOLO DISPATCH TIMES]\n` + customSolos.map(s => `• ${s.title}: ${formatUtc(triggers[s.id].triggerMs)}`).join('\n');
+                    } else {
+                        text = "No active solo triggers calculated.";
+                    }
+                } else if (syncMode === 'queue') {
                     text = `🚀 [RE-CAP SOLOS]\n`;
                     if (triggers.postSolo1) text += `• Post-Land Solos: 1) ${formatUtc(triggers.postSolo1.triggerMs)}  2) ${formatUtc(triggers.postSolo2.triggerMs)}  3) ${formatUtc(triggers.postSolo3.triggerMs)}\n`;
                     if (triggers.preSolo1) text += `• Pre-Recap Solos: 1) ${formatUtc(triggers.preSolo1.triggerMs)}  2) ${formatUtc(triggers.preSolo2.triggerMs)}  3) ${formatUtc(triggers.preSolo3.triggerMs)}`;
@@ -816,9 +874,6 @@
                 };
 
                 text = `${modeTitles[syncMode] || '⚔️ ALLIANCE BATTLE MARCH ORDERS ⚔️'}\n`;
-                text += `--------------------------------------------------\n`;
-                text += `NOTE: Standard 10s March Time assumed for all players.\n`;
-                text += `Adjust your dispatch time if your march time differs.\n`;
                 text += `--------------------------------------------------\n`;
                 
                 if (syncMode === 'custom') {
@@ -893,10 +948,10 @@
             
             const labels = {
                 rules: "Room Rules & Etiquette",
-                compact: "Compact In-Game Chat Format",
-                rally: "Rally Lead Launch Order",
-                solos: "Solo Dispatch Timestamps",
-                full: "Full Expanded Command Block"
+                compact: "Compact In-Game Chat Format (UTC)",
+                rally: "Rally Lead Launch Order (UTC)",
+                solos: "Solo Dispatch Timestamps (UTC)",
+                full: "Full Expanded Command Block (UTC)"
             };
 
             toast.innerHTML = `<i class="fa-solid fa-clipboard-check text-sm"></i> ${labels[type] || 'Text'} Copied to Clipboard!`;
@@ -927,7 +982,7 @@
         function setPlannedTarget() {
             const val = document.getElementById('targetLandingInput').value;
             if (!val) return;
-            let targetDateMs = new Date(val).getTime();
+            let targetDateMs = inputStringToEpoch(val);
             const minMs = getMinLandingTimestamp();
 
             if (targetDateMs < minMs) {
@@ -1076,11 +1131,19 @@
         function formatTimeMs(epochMs) {
             if (!epochMs) return '--:--:--.---';
             const d = new Date(epochMs);
-            const hh = String(d.getHours()).padStart(2, '0');
-            const mm = String(d.getMinutes()).padStart(2, '0');
-            const ss = String(d.getSeconds()).padStart(2, '0');
-            const ms = String(d.getMilliseconds()).padStart(3, '0');
-            return `${hh}:${mm}:${ss}.${ms}`;
+            if (useUTC) {
+                const hh = String(d.getUTCHours()).padStart(2, '0');
+                const mm = String(d.getUTCMinutes()).padStart(2, '0');
+                const ss = String(d.getUTCSeconds()).padStart(2, '0');
+                const ms = String(d.getUTCMilliseconds()).padStart(3, '0');
+                return `${hh}:${mm}:${ss}.${ms} UTC`;
+            } else {
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                const ss = String(d.getSeconds()).padStart(2, '0');
+                const ms = String(d.getMilliseconds()).padStart(3, '0');
+                return `${hh}:${mm}:${ss}.${ms} Local`;
+            }
         }
 
         // --- Main Engine Loop ---
